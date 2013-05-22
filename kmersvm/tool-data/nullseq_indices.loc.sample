@@ -1,0 +1,12 @@
+#This is a sample file used by several tools in the KmerSVM suite.
+#The nullseq_indices.loc file has this format (white space characters 
+#are TAB characters):
+#
+#<Build>	<DBKey>	<FullPathToFile>
+#Your nullseq_indices.loc file should include an entry per line for each set of  
+#indces you have stored.  For example:
+
+#mm9	Mouse(mm9)	/home/example/galaxy-dist/tools/kmersvm/mm9
+#mm8	Mouse(mm8)	/home/example/galaxy-dist/tools/kmersvm/nullseq_indices_mm8
+#hg18	Human(hg18)	/home/example/galaxy-dist/tools/kmersvm/hg18
+#hg19	Human(hg19)	/home/example/nullseq_indices_hg19

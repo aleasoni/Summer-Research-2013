@@ -1,0 +1,77 @@
+<tool id="kmersvm_nullseq" name="Generate Null Sequence">
+  <description>using random sampling from genomic DNA</description>
+  <command interpreter="python">scripts/nullseq_generate.py -q 
+  	#if str($excluded) !="None":
+  		-e $excluded
+  	#end if
+  	-x $fold -r $rseed -g $gc_err -t $rpt_err $input $dbkey ${indices_path.fields.path}
+  </command>
+  <inputs>
+    <param name="fold" type="integer" value="1" label="# of Fold-Increase" />
+    <param name="gc_err" type="float" value="0.02" label="Allowable GC Error" />
+    <param name="rpt_err" type="float" value="0.02" label="Allowable Repeat Error" />
+    <param name="rseed" type="integer" value="1" label="Random Number Seed" />    
+    <param format="interval" name="input" type="data" label="BED File of Positive Regions" />
+      <validator type="unspecified_build" />
+      <validator type="dataset_metadata_in_file" filename="nullseq_indices.loc" metadata_name="dbkey" metadata_column="0" message="Sequences are currently unavailable for the specified build." />
+    <param name="excluded" optional="true" format="interval" type="data" value="None" label="Excluded Regions (optional)" />  
+    <param name="indices_path" type="select" label="Available Datasets">
+      <options from_file="nullseq_indices.loc">
+        <column name="dbkey" index="0"/>
+        <column name="value" index="0"/>
+        <column name="name" index="1"/>
+        <column name="path" index="2"/>
+        <!--filter type="data_meta" ref="input" key="dbkey" column="0" /--> 
+      </options>
+    </param>
+  </inputs>
+  <outputs>
+    <data format="interval" name="nullseq_output" from_work_dir="nullseq_output.bed" />
+  </outputs>
+  <tests>
+	  <test>
+		  <param name="input" value="nullseq_test.bed" />
+		  <param name="fold" value="1" />
+		  <param name="gc_err" value="0.02" />
+		  <param name="rpt_err" value="0.02" />
+		  <param name="rseed" value="1" />
+		  <param name="indices_path" value="hg19" />
+		  <output name="output" file="nullseq_output.bed" />
+	  </test>
+  </tests>
+  <help>
+  
+**What it does**
+  
+Takes an input BED file and generates a set of sequences for use as negative data (null sequences) in Train SVM similar in length, GC content and repeat fraction.  Uses random sampling for efficiency.
+  
+**Parameters**
+  
+Fold-Increase: Size of desired null sequence data set expressed as multiple of the size of the input data set.
+  
+GC Error, Repeat Error: Acceptable difference between a positive sequence and its corresponding null sequence in terms of GC content, repeat content.
+  
+Random Number Seed:  Seed for random number generator.
+
+Excluded Regions:  Submitted regions will be excluded from null sequence generation.
+
+----
+  
+**Example**
+  
+Given a BED file containing::
+  
+    chr1	10212203	10212303
+    chr1	103584748	103584848
+    chr1	105299130	105299230
+    chr1	106367772	106367872
+	
+Tool will output BED file matched in length, GC content and repeat content::
+  
+    chr1	3089935	3090035
+    chr1	5031335	5031435
+    chr1	5103742	5103842
+    chr1	5650372	5650472
+	
+  </help>
+</tool>

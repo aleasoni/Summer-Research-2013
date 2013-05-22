@@ -1,0 +1,47 @@
+<tool id="kmersvm_genome_split" name="Split Genome">
+  <description>split genome into overlapping segments for feature prediction</description>
+  <command interpreter="python">scripts/split_genome.py -i $incr -s $size $bed_file</command>
+  <inputs>
+    <param name="size" type="integer" value="1000" label="Size of Fragmanent" />
+    <param name="incr" type="integer" value="500" label="Size of Overlap" />
+    <param format="tabular" name="bed_file" type="data" label="BED File of Regions for Prediction"/>
+  </inputs>
+  <outputs>
+    <data format="interval" name="split_genome_output.bed" from_work_dir="split_genome_output.bed" />
+  </outputs>
+  <tests>
+    <test>
+      <param name="size" value="100" />
+      <param name="incr" value="20" />
+      <param name="bed_file" value="nullseq_test.bed" ftype="tabular"/>
+      <output name="output" file="split_genome_output.bed" />
+    </test>
+  </tests>
+  <help>
+  
+**What it does**
+  
+Divides input genomic regions into regions of size N bp which overlap each other by N/2 bp.  If genome-wide prediction is desired, a single BED file listing the total length of each chromosome should be provided as input.x
+
+**Parameters**
+  
+Size of Genome Fragments: Size of regions into which genome will be split.
+  
+Size of Overlap: Size of overlap between genomic regions.
+
+BED File of Regions for Prediction: Regions to be split according to above criteria.
+
+----
+  
+**Example**
+  
+Given a BED file, tool will output BED file of regions of length N, which overlap by N/2 bp::
+  
+    chr1	0	1000
+    chr1	500	1500
+    chr1	1000	2000
+    chr1	1500	2500
+
+
+  </help>
+</tool>

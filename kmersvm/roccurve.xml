@@ -1,0 +1,115 @@
+<tool id="ROC Curve" name="Plot ROC Curve">
+	<description></description>
+	<command interpreter="sh">r_wrapper.sh $script_file</command>
+	<inputs>
+		<param format="tabular" name="cvpred_data" type="data" label="CV Predictions"/>
+	</inputs>
+	<outputs>
+		<data format="png" name="roccurve.png" from_work_dir="roccurve.png" />
+	</outputs>
+
+	<configfiles>
+		<configfile name="script_file">
+
+			rm(list = objects() )
+
+			########## plot ROC and PR-Curve #########
+			roccurve &lt;- function(x) {
+				sink(NULL,type="message")
+				options(warn=-1)
+				suppressMessages(suppressWarnings(library('ROCR')))
+				svmresult &lt;- data.frame(x)
+				colnames(svmresult) &lt;- c("Seqid","Pred","Label", "CV")
+
+				linewd &lt;- 1
+				wd &lt;- 4
+				ht &lt;- 4
+				fig.nrows &lt;- 1 
+				fig.ncols &lt;- 1
+				pt &lt;- 10
+				cex.general &lt;- 1 
+				cex.lab &lt;- 0.9
+				cex.axis &lt;- 0.9
+				cex.main &lt;- 1.2
+				cex.legend &lt;- 0.8
+
+				png("roccurve.png", width=wd*fig.ncols, height=ht*fig.nrows, unit="in", res=100)
+
+				par(xaxs="i", yaxs="i", mar=c(3.5,3.5,2,2)+0.1, mgp=c(2,0.8,0), mfrow=c(fig.nrows, fig.ncols))
+
+				CVs &lt;- unique(svmresult[["CV"]])
+				preds &lt;- list()
+				labs &lt;- list()
+				auc &lt;- c()
+				for(i in 1:length(CVs)) {
+					preds[i] &lt;- subset(svmresult, CV==(i-1), select=c(Pred))
+					labs[i] &lt;- subset(svmresult, CV==(i-1), select=c(Label))
+				}
+
+				pred &lt;- prediction(preds, labs)
+				perf_roc &lt;- performance(pred, 'tpr', 'fpr')
+				perf_auc &lt;- performance(pred, 'auc')
+
+				avgauc &lt;- 0
+
+				for(j in 1:length(CVs)) {
+					avgauc &lt;- avgauc + perf_auc@y.values[[j]]
+				}        
+
+				avgauc &lt;- avgauc/length(CVs)
+
+				plot(perf_roc, colorize=T, main="ROC curve", spread.estimate="stderror",
+				xlab="1-Specificity", ylab="Sensitivity", cex.lab=1.2)
+				text(0.2, 0.1, paste("AUC=", format(avgauc, digits=3, nsmall=3)))
+
+				dev.off()
+			}
+
+			############## main function #################
+			d &lt;- read.table("${cvpred_data}")
+
+			roccurve(d)
+
+		</configfile>
+	</configfiles>
+
+	<help>
+	
+**Note**
+
+This tool is based on the ROCR library.  If you use this tool please cite:
+		
+Tobias Sing, Oliver Sander, Niko Beerenwinkel, Thomas Lengauer.
+ROCR: visualizing classifier performance in R.
+Bioinformatics 21(20):3940-3941 (2005).  
+        
+----
+
+**What it does**
+
+Takes as input cross-validation predictions and calculates ROC Curve and its area under curve (AUC).
+
+----
+
+**Results**
+
+ROC Curve: Receiver Operating Characteristic Curve. Compares true positive rate (sensitivity) to false positive rate (1 - specificity).  
+
+Area Under the ROC Curve (AUC): Probability that of a randomly selected positive/negative pair, the positive will be scored more highly by the trained SVM than a negative.
+
+.. class:: infomark
+
+ROC curves can be inaccurate if there is a large skew in class distribution.  For more information see:
+
+Jesse Davis, Mark Goadrich.
+The Relationship Between Precision-Recall and ROC Curves.
+Proceedings of the 23rd Annual Internation Conference on Machine Learning.
+Pittsburgh, PA, 2006.
+
+<!--
+**Example**
+
+.. image:: ./static/images/sample_roc_chen.png
+-->
+	</help>
+</tool>

@@ -1,0 +1,41 @@
+<tool id="kmersvm_seqprofile" name="Sequence Profiles">
+  <description>provide length, gc content, and repeat fraction of each sequence</description>
+  <command interpreter="python">scripts/make_profile.py $input $dbkey ${indices_path.fields.path} seq_profile.txt</command>
+  <inputs>
+	<param format="interval" name="input" type="data" label="BED File of Regions of interest" />
+      <validator type="unspecified_build" />
+      <validator type="dataset_metadata_in_file" filename="nullseq_indices.loc" metadata_name="dbkey" metadata_column="0" message="Sequences are currently unavailable for the specified build." />
+    <param name="indices_path" type="select" label="Available Datasets">
+      <options from_file="nullseq_indices.loc">
+        <column name="dbkey" index="0"/>
+        <column name="value" index="0"/>
+        <column name="name" index="1"/>
+        <column name="path" index="2"/>
+        <filter type="data_meta" ref="input" key="dbkey" column="0" /> 
+      </options>
+    </param>
+  </inputs>
+  <outputs>
+	  <data format="tabular" name="seq_profile.txt" from_work_dir="seq_profile.txt" />
+  </outputs>
+  <help>
+
+**What it does**
+
+Takes as input a BED file and the file's corresponding genome build.
+
+Returns length, GC and repeat content information for each interval in bed file.
+
+----
+
+**Example**
+
+Profile file::
+
+	mm9_chr10_6238300_6238926_+	626	0.525559105431	0.0
+	mm9_chr10_7757450_7758801_+	1351	0.451517394523	0.0384900074019
+	mm9_chr10_8992150_8992551_+	401	0.411471321696	0.0
+	mm9_chr10_9265550_9266026_+	476	0.38025210084	0.0
+	
+  </help>
+</tool>

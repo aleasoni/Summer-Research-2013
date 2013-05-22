@@ -1,0 +1,131 @@
+<tool id="kmersvm_train" name="Train SVM">
+  <description>on regulatory DNA sequences</description>
+  <command interpreter="python">scripts/kmersvm_train.py -q -p -s -v $N -C $SVMC -e $EPS 
+    #if $weight_type.weight_type_select == "custom"
+	  -w $weight_type.weight
+	#end if
+    #if $kernel.kernel_select == "sk"
+      -t 1 -k $kernel.kmerlen_sk
+    #else
+      -t 2 -k $kernel.kmerlen_wsk -K $kernel.kmerlen_wsk2
+    #end if
+	$inputA $inputB
+  </command>
+  <inputs>
+    <param format="fasta" name="inputA" type="data" label="Positives"/>
+    <param format="fasta" name="inputB" type="data" label="Negatives"/>
+    <conditional name="kernel">
+        <param name="kernel_select" type="select" label="Kernel Type">
+            <option value="sk">Spectrum Kernel</option>
+            <option value="wsk">Weighted Spectrum Kernel</option>
+        </param>
+        <when value="sk">
+            <param name="kmerlen_sk" type="integer" value="6" label="K-mer Length">
+                <validator type="in_range" message="K-mer length must be in range 5-10" min="5" max="10" />
+            </param>
+        </when>           
+        <when value="wsk">
+            <param name="kmerlen_wsk" type="integer" value="6" label="Minimum K-mer Length">
+                <validator type="in_range" message="K-mer length must be in range 5-10" min="5" max="10" />
+            </param> 
+            <param name="kmerlen_wsk2" type="integer" value="8" label="Maximum K-mer Length">
+                <validator type="in_range" message="K-mer length must be in range 5-10" min="5" max="10" />
+            </param>             
+        </when> 
+    </conditional>
+    <param name="N" type="select" label="N-Fold Cross Validation">
+        <option value="3">3</option>
+        <option value="5" selected="true">5</option>
+        <option value="10">10</option>
+    </param>
+    <conditional name="weight_type">
+    	<param name="weight_type_select" type="select" label="Positive Set Weight">
+			<option value="automatic">Automatic</option>
+			<option value="custom">Custom</option>
+		</param>
+		<when value="custom">
+    		<param name="weight" type="float" value="1" label="Input The Value of Positive Set Weight" />   
+		</when>
+    </conditional>
+    <param name="SVMC" type="integer" value="1" label="Regularization Param C" />
+    <param name="EPS" type="float" value="0.00001" label="Precision Param E" />
+  </inputs>
+  <outputs>
+    <data format="tabular" name="SVM_weights" from_work_dir="kmersvm_output_weights.out" label="${tool.name} on ${on_string} : Weights" />
+    <data format="tabular" name="CV_predictions" from_work_dir="kmersvm_output_cvpred.out" label="${tool.name} on ${on_string} : Predictions" />
+  </outputs>
+   <tests>
+        <!--SK-->
+        <test>
+          <param name="kernel_select" value="sk"/>
+          <param name="inputA" value="test_positive.fa" />
+          <param name="inputB" value="test_negative.fa" />
+          <param name="weight_type_select" value="automatic" />
+          <output name="output" file="test_weights.out" compare="re_match" lines_diff="20"/>
+          <output name="output2" file="train_predictions.out" compare="re_match"/>	
+        </test>
+  </tests>
+  <help>
+  
+**Note**
+ 
+.. class:: warningmark
+  
+All values of K-mer lengths must be between 5 and 10 bp.
+  
+----
+  
+**What it does**
+  
+Takes as input 2 FASTA files, 1 of positive sequences and 1 of negative sequences.  Produces 2 outputs: 
+  
+  A) Weights: list of sequences of length K ranked by score and posterior probability for that score.
+  	
+  B) Predictions: results of N-fold cross validation
+  
+----
+  
+**Parameters**
+  
+Kernel: 2 choices:
+  
+  A) Spectrum Kernel: Analyzes a sequence using strings of length K.
+  	
+  B) Weighted Spectrum Kernel: Analyzes a sequence using strings of range of lengths K1 - Kn.
+  	
+N-Fold Cross Validation: Number of partitions of training data used for cross validation.
+  
+Weight: Increases importance of positive data (increase if positive sets are very trustworthy or for training with very large negative sequence sets).
+  
+Regularization Parameter: Penalty for misclassification.  Trade-off is overfitting (high parameter) versus high error rate (low parameter).
+  
+Precision Parameter:  Insensitivity zone.  Affects precision of SVM by altering number of support vectors used.
+  
+----
+  
+**Example**
+  
+Weights file::
+  
+    #parameters:
+    #kernel=1
+    #kmerlen=6
+    #bias=-1.20239998751
+    #A=-1.50821617139
+    #B=-0.110516009177
+    #NOTE: k-mers with large negative weights are also important. They can be found at the bottom of the list.
+    #k-mer	revcomp	SVM-weight
+    AGGTCA	TGACCT	9.32110889151
+    AAGGTC	GACCTT	8.22598019901
+    ACCTTG	CAAGGT	5.78739494153
+    AGGTCG	CGACCT	5.40759311635
+	
+Predictions file::
+  
+    mm8_chr1_10212203_10212303_+	3.31832111466	1	1
+    mm8_chr1_103584748_103584848_+	-0.253869299667	1	3
+    mm8_chr1_105299130_105299230_+	-1.03463560077	1	3
+    mm8_chr1_106367772_106367872_+	5.36528447025	1	3
+  
+  </help>
+</tool>

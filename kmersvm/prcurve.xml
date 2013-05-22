@@ -1,0 +1,118 @@
+<tool id="PR Curve" name="Plot Precision-Recall Curve">
+	<description></description>
+	<command interpreter="sh">r_wrapper.sh $script_file</command>
+	<inputs>
+		<param format="tabular" name="cvpred_data" type="data" label="CV Predictions"/>
+	</inputs>
+	<outputs>
+		<data format="png" name="PR_curve" from_work_dir="prcurve.png" />
+	</outputs>
+
+	<configfiles>
+		<configfile name="script_file">
+
+			rm(list = objects() )
+
+			########## calculate auprc #########
+			auPRC &lt;- function (perf) {
+				rec &lt;- perf@x.values
+				prec &lt;- perf@y.values
+				result &lt;- list()
+				for (i in 1:length(perf@x.values)) {
+				result[i] &lt;- list(sum((rec[[i]][2:length(rec[[i]])] - rec[[i]][2:length(rec[[i]])-1])*prec[[i]][-1]))
+				}
+				return(result)
+			}
+
+			########## plot ROC and PR-Curve #########
+			prcurve &lt;- function(x) {
+				sink(NULL,type="message")
+				options(warn=-1)
+				suppressMessages(suppressWarnings(library('ROCR')))
+				svmresult &lt;- data.frame(x)
+				colnames(svmresult) &lt;- c("Seqid","Pred","Label", "CV")
+
+				linewd &lt;- 1
+				wd &lt;- 4
+				ht &lt;- 4
+				fig.nrows &lt;- 1 
+				fig.ncols &lt;- 1
+				pt &lt;- 10
+				cex.general &lt;- 1 
+				cex.lab &lt;- 0.9
+				cex.axis &lt;- 0.9
+				cex.main &lt;- 1.2
+				cex.legend &lt;- 0.8
+
+
+				png("prcurve.png", width=wd*fig.ncols, height=ht*fig.nrows, unit="in", res=100)
+
+				par(xaxs="i", yaxs="i", mar=c(3.5,3.5,2,2)+0.1, mgp=c(2,0.8,0), mfrow=c(fig.nrows, fig.ncols))
+
+				CVs &lt;- unique(svmresult[["CV"]])
+				preds &lt;- list()
+				labs &lt;- list()
+				auc &lt;- c()
+				for(i in 1:length(CVs)) {
+					preds[i] &lt;- subset(svmresult, CV==(i-1), select=c(Pred))
+					labs[i] &lt;- subset(svmresult, CV==(i-1), select=c(Label))
+				}
+
+				pred &lt;- prediction(preds, labs)
+				perf_prc &lt;- performance(pred, 'prec', 'rec')
+
+				prcs &lt;- auPRC(perf_prc)
+				avgprc &lt;- 0
+
+				for(j in 1:length(CVs)) {
+					avgprc &lt;- avgprc + prcs[[j]]
+				}        
+
+				avgprc &lt;- avgprc/length(CVs)
+
+				plot(perf_prc, colorize=T, main="P-R curve", spread.estimate="stderror",
+				xlab="Recall", ylab="Precision", cex.lab=1.2, xlim=c(0,1), ylim=c(0,1))
+				text(0.2, 0.1, paste("AUC=", format(avgprc, digits=3, nsmall=3)))
+
+				dev.off()
+			}
+
+			############## main function #################
+			d &lt;- read.table("${cvpred_data}")
+
+			prcurve(d)
+
+		</configfile>
+	</configfiles>
+
+	<help>
+	
+**Note**
+
+This tool is based on the ROCR library.  If you use this tool please cite:
+		
+Tobias Sing, Oliver Sander, Niko Beerenwinkel, Thomas Lengauer.
+ROCR: visualizing classifier performance in R.
+Bioinformatics 21(20):3940-3941 (2005).  
+        
+----
+
+**What it does**
+
+Takes as input cross-validation predictions and calculates Precision-Recall(PR) Curve and its area under curve(AUC).
+
+----
+
+**Results**
+
+PR Curve: Precision Recall Curve. Compares number of true positives (recall; same as sensitivity) to the number of true positives relative to the total number sequences classified as positive (precision). 
+
+Area Under the PR Curve.
+
+<!--
+**Example**
+
+.. image:: ./static/images/sample_roc_chen.png
+-->
+	</help>
+</tool>
