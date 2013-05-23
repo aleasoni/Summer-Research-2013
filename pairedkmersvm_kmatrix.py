@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#Author:  Alessandro L. Asoni <ale.luca.asoni@gmail.com>
 """
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,13 +23,31 @@ import math
 from itertools import product
 from libkmersvm import *
 
+
 def get_kmer_list(k):
+    """ Genrate list of all possible kmers of length k 
+    Arguments:
+        k -- int, kmer length
+
+    Return:
+        list of all possible kmers of length k
+    """
     kmerlist = []
     for x in product('ACGT', repeat=k):
         kmerlist.append(''.join(x))
     return kmerlist
 
+
 def kpair2feat_map(kmers, homeopair, quiet):
+    """ Create kmair-pair to feature id map 
+    Arguments:
+        kmers -- list of strings, list of all single kmers
+        homeopair -- boolean, if true a pair of equal kmers is used as feature
+        quiet -- boolean, if true it suppresses messages
+
+    Return:
+        dictionary of kmer-pairs (a,b) to feature id number
+    """
     if not quiet:
         print "creating kmer-pair to feature id map ... "
     feature_id = 1
@@ -62,6 +79,7 @@ def kpair2feat_map(kmers, homeopair, quiet):
     if not quiet:
         print
     return kpair_id_dict
+
 
 def create_feature_vector( seq, features, k, dmin, dmax):
     """ Create SVM-light format feature vector 
@@ -109,12 +127,30 @@ def create_feature_vector( seq, features, k, dmin, dmax):
 
     return feature_vector
 
+
 def spectrum_kernel( x1, x2 ):
+    """ Calculate the spectrum kernel function applied to the inputs 
+    Arguments:
+        x1 -- map, feature vector
+        x2 -- map, feature vector
+
+    Return:
+        <x1,x2>/(|x1||x2|)
+    """
     mag_x1 = math.sqrt(float(inner_product(x1,x1)))
     mag_x2 = math.sqrt(float(inner_product(x2,x2)))
     return inner_product(x1,x2)/(mag_x1*mag_x2)
 
+
 def inner_product( x1, x2 ):
+    """ Calculate the inner product of theh inputs 
+    Arguments:
+        x1 -- map, feature vector
+        x2 -- map, feature vector
+
+    Return:
+        <x1,x2>
+    """
     in_product = 0
     for ( f_id, f_count) in x1.items():
         if f_id in x2:
@@ -122,15 +158,31 @@ def inner_product( x1, x2 ):
 
     return in_product
 
+
 def create_kernel_matrix(n):
+    """ Initialize kernel matrix 
+    Arguments:
+        n -- int, matrix dimension
+
+    Return:
+        the matrix 
+    """
     M = numpy.zeros((n,n), dtype=float)
     return M
 
-def update_kernel_matrix(M,n,m,d):
-    M[n,m] = d
-    return
 
 def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
+    """ Fill kernel matrix 
+    Arguments:
+        seqs -- list of strings, DNA sequences 
+        M -- numpy matrix, kernel matrix
+        k -- integer, kmer length
+        dmin -- integer, mininmum distance b/w kmer pair
+        dmax -- integer, maximum distance b/w kmer pair
+        quiet -- boolean, if true it suppresses messages
+    Return:
+        the matrix 
+    """
     if not quiet:
         print "filling kernel matrix ... "
     
@@ -161,14 +213,21 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
 
             M[i,j] = spectrum_kernel( xi, xj )
             if i == j and M[i,j] == 0:
-                print create_feature_vector(seqs[i],features,k,dmin,dmax)
-                print create_feature_vector(seqs[j],features,k,dmin,dmax)
             
     if not quiet:
         print
     return M
 
+
 def write_kernel_matrix(M,n,output):
+    """ write kernel matrix to file
+    Arguments:
+        M -- numpy matrix, kernel matrix
+        n -- int, matrix dimension
+        output -- string, name of output file
+    Return:
+        the matrix 
+    """
     f = open(output, 'w')
     for i in xrange(0,n):
         s = " " + str(M[i,0])
