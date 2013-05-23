@@ -124,21 +124,20 @@ def create_feature_vector( seq, features, k, dmin, dmax):
                 feature_vector[feature_id] = 0
             feature_vector[feature_id] += 1
 
-
     return feature_vector
 
 
-def spectrum_kernel( x1, x2 ):
+def spectrum_kernel( x1, x2, mag_x1, mag_x2 ):
     """ Calculate the spectrum kernel function applied to the inputs 
     Arguments:
         x1 -- map, feature vector
         x2 -- map, feature vector
+        mag_x1 -- float, magnitude of x1
+        mag_x2 -- float, magnitude of x2
 
     Return:
         <x1,x2>/(|x1||x2|)
     """
-    mag_x1 = math.sqrt(float(inner_product(x1,x1)))
-    mag_x2 = math.sqrt(float(inner_product(x2,x2)))
     return inner_product(x1,x2)/(mag_x1*mag_x2)
 
 
@@ -151,10 +150,17 @@ def inner_product( x1, x2 ):
     Return:
         <x1,x2>
     """
+    if len(x1) < len(x2):
+        X = x1
+        Y = x2
+    else:
+        X = x2
+        Y = x1
+
     in_product = 0
-    for ( f_id, f_count) in x1.items():
-        if f_id in x2:
-            in_product += f_count * x2[f_id]
+    for ( f_id, f_count) in X.items():
+        if f_id in Y:
+            in_product += f_count * Y[f_id]
 
     return in_product
 
@@ -180,14 +186,17 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
         dmin -- integer, mininmum distance b/w kmer pair
         dmax -- integer, maximum distance b/w kmer pair
         quiet -- boolean, if true it suppresses messages
+
     Return:
         the matrix 
     """
     if not quiet:
         print "filling kernel matrix ... "
     
-    #memorize feature vecotrs
+    #memorize feature vectors
     feature_vectors = [{}] * len(seqs)
+    #memorize vector magnitudes
+    vector_mags = [0.0] * len(seqs)
 
     #variables to keep trak of progress
     progress_count = 0
@@ -201,21 +210,27 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
         for j in xrange(0,i+1):
             if not len(feature_vectors[i]) == 0:
                 xi = feature_vectors[i]
+                mag_xi = vector_mags[i]
             else:
                 xi = create_feature_vector(seqs[i],features,k,dmin,dmax)
+                mag_xi = math.sqrt(float(inner_product(xi,xi)))
                 feature_vectors[i] = xi
+                vector_mags[i] = mag_xi 
 
             if not len(feature_vectors[j]) == 0:
                 xj = feature_vectors[j]
+                mag_xj = vector_mags[j]
             else:
                 xj = create_feature_vector(seqs[j],features,k,dmin,dmax)
+                mag_xj = math.sqrt(float(inner_product(xj,xj)))
                 feature_vectors[j] = xj
+                vector_mags[j] = mag_xj 
 
-            M[i,j] = spectrum_kernel( xi, xj )
-            if i == j and M[i,j] == 0:
+            M[i,j] = spectrum_kernel( xi, xj, mag_xi, mag_xj )
             
     if not quiet:
         print
+
     return M
 
 
@@ -240,13 +255,19 @@ def write_kernel_matrix(M,n,output):
 
 def main(argv = sys.argv):
     usage = "Usage: %prog [options] POSITIVE_SEQ NEGATIVE_SEQ OUTPUT_NAME"
-    desc  = "1. take two files(FASTA format) as input, 2. train an SVM and store the trained SVM weights"
+    desc  = "1. take two files(FASTA format) as input, \
+             2. train an SVM and store the trained SVM weights"
     parser = optparse.OptionParser(usage=usage, description=desc)
-    parser.add_option("-k", dest="kmerlen", type=int, help="set kmer length", default=6)
-    parser.add_option("-d",  dest="dmin", type=int, help="set minimum distance between kmer pair", default=0)
-    parser.add_option("-D",  dest="dmax", type=int, help="set maximum distance between kmer pair", default=50)
-    parser.add_option("-H",  dest="homeopair", default=True, help="don't use duplicate kmer pair as feature (default=true)", action="store_false")
-    parser.add_option("-q", dest="quiet", default=False, action="store_true", help="supress messages (default=false)")
+    parser.add_option("-k", dest="kmerlen", type=int, \
+                      help="set kmer length", default=6)
+    parser.add_option("-d", dest="dmin", type=int, \
+                      help="set minimum distance between kmer pair", default=0)
+    parser.add_option("-D", dest="dmax", type=int, \
+                      help="set maximum distance between kmer pair", default=50)
+    parser.add_option("-H", dest="homeopair", default=True, \
+                      help="don't use duplicate kmer pair as feature", action="store_false")
+    parser.add_option("-q", dest="quiet", default=False, action="store_true", \
+                      help="supress messages (default=false)")
 
     (options, args) = parser.parse_args()
 
