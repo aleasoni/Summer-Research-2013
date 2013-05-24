@@ -6,7 +6,7 @@ Meeting with Dongwon and Mike
 
 - Revisit Machine Learning final project code. Changes to be done:
     -> rewrite code in python
-    -> include parameters: window size, kmer length, min and max distance between kmer pair
+    -> include parameters: kmer length, min and max distance between kmer pair
 
 - Once done generate feature vectors and test svm_light ~ auROC.
 
