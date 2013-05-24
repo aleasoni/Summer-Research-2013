@@ -207,26 +207,26 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
             sys.stdout.write("\r%.2f%% progress. " % p)
             sys.stdout.flush()
         progress_count += 1
-        #for j in xrange(0,i+1):
-        if not len(feature_vectors[i]) == 0:
-            xi = feature_vectors[i]
-            mag_xi = vector_mags[i]
-        else:
-            xi = create_feature_vector(seqs[i],features,k,dmin,dmax)
-            mag_xi = math.sqrt(float(inner_product(xi,xi)))
-            feature_vectors[i] = xi
-            vector_mags[i] = mag_xi 
+        for j in xrange(0,i+1):
+            if not len(feature_vectors[i]) == 0:
+                xi = feature_vectors[i]
+                mag_xi = vector_mags[i]
+            else:
+                xi = create_feature_vector(seqs[i],features,k,dmin,dmax)
+                mag_xi = math.sqrt(float(inner_product(xi,xi)))
+                feature_vectors[i] = xi
+                vector_mags[i] = mag_xi 
 
-        #if not len(feature_vectors[j]) == 0:
-        xj = feature_vectors[0]
-        mag_xj = vector_mags[0]
-        #else:
-        #    xj = create_feature_vector(seqs[j],features,k,dmin,dmax)
-        #    mag_xj = math.sqrt(float(inner_product(xj,xj)))
-        #    feature_vectors[j] = xj
-        #    vector_mags[j] = mag_xj 
+            if not len(feature_vectors[j]) == 0:
+                xj = feature_vectors[j]
+                mag_xj = vector_mags[j]
+            else:
+                xj = create_feature_vector(seqs[j],features,k,dmin,dmax)
+                mag_xj = math.sqrt(float(inner_product(xj,xj)))
+                feature_vectors[j] = xj
+                vector_mags[j] = mag_xj 
 
-        M[i,0] = spectrum_kernel( xi, xj, mag_xi, mag_xj )
+            M[i,j] = spectrum_kernel( xi, xj, mag_xi, mag_xj )
             
     if not quiet:
         print
