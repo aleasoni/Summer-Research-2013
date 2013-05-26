@@ -77,7 +77,7 @@ def kpair2feat_map(kmers, homeopair, quiet):
 
             feature_id += 1
     if not quiet:
-        print feature_id
+        print
     return kpair_id_dict
 
 
@@ -200,7 +200,7 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
 
     #variables to keep trak of progress
     progress_count = 0
-    total = len(seqs)
+    total = ( (len(seqs)+2)*(len(seqs)+1) )/2.0
     for i in xrange(0,len(seqs)):
         if not quiet and progress_count % math.ceil(total/1000.0) == 0:
             p = (float(progress_count)/total)*100
@@ -208,6 +208,12 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
             sys.stdout.flush()
         progress_count += 1
         for j in xrange(0,i+1):
+            if not quiet and progress_count % math.ceil(total/10000.0) == 0:
+                p = (float(progress_count)/total)*100
+                sys.stdout.write("\r%.2f%% progress. " % p)
+                sys.stdout.flush()
+            progress_count += 1
+
             if not len(feature_vectors[i]) == 0:
                 xi = feature_vectors[i]
                 mag_xi = vector_mags[i]
