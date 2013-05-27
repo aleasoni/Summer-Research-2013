@@ -144,7 +144,8 @@ def fill_kernel_matrix(seqs,M,k,dmin,dmax,quiet):
                 sqmi = square_mags[i]
                 sqmj = square_mags[j]
                 krnl = word_kernel( seqs[i], indj, k, dmin, dmax)
-                M[i,j] = spectrum_kernel(krnl, math.sqrt(sqmi), math.sqrt(sqmj))
+                M[i,j] = krnl
+                #M[i,j] = spectrum_kernel(krnl, math.sqrt(sqmi), math.sqrt(sqmj))
             
     if not quiet:
         print
