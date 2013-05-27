@@ -232,7 +232,8 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
                 feature_vectors[j] = xj
                 vector_mags[j] = mag_xj 
 
-            M[i,j] = spectrum_kernel( xi, xj, mag_xi, mag_xj )
+            #M[i,j] = spectrum_kernel( xi, xj, mag_xi, mag_xj )
+            M[i,j] = inner_product( xi, xj )
             
     if not quiet:
         print
