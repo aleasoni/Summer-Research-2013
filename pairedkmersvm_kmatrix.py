@@ -32,6 +32,7 @@ class Index(object):
         self.index = {}
         for i in xrange(0, len(t)-ln+1):
             substr = t[i:i+ln]
+
             if substr not in self.index:
                 self.index[substr] = []
             self.index[substr].append(i)
@@ -39,66 +40,6 @@ class Index(object):
     def query(self, p):
         """ Return candidate alignments for p """
         return self.index.get(p[:self.ln]) or []
-
-def kmerid2kmer(kmerid, kmerlen):
-	"""convert integer kmerid to kmer string
-
-	Arguments:
-	kmerid -- integer, id of k-mer
-	kmerlen -- integer, length of k-mer
-
-	Return:
-	kmer string
-	"""
-
-	nts = "ACGT"
-	kmernts = []
-	kmerid2 = kmerid
-
-	for i in xrange(kmerlen):
-		ntid = kmerid2 % 4
-		kmernts.append(nts[ntid])
-		kmerid2 = int((kmerid2-ntid)/4)
-
-	return ''.join(reversed(kmernts))
-
-
-def kmer2kmerid(kmer, kmerlen):
-	"""convert kmer string to integer kmerid
-
-	Arguments:
-	kmerid -- integer, id of k-mer
-	kmerlen -- integer, length of k-mer
-
-	Return:
-	id of k-mer
-	"""
-
-	nt2id = {'A':0, 'C':1, 'G':2, 'T':3}
-
-	return reduce(lambda x, y: (4*x+y), [nt2id[x] for x in kmer])
-
-
-def get_rcmap(kmerid, kmerlen):
-	"""mapping kmerid to its reverse complement k-mer on-the-fly
-
-	Arguments:
-	kmerid -- integer, id of k-mer
-	kmerlen -- integer, length of k-mer
-
-	Return:
-	integer kmerid after mapping to its reverse complement
-	"""
-
-	#1. get kmer from kmerid
-	#2. get reverse complement kmer
-	#3. get kmerid from revcomp kmer
-	rckmerid = kmer2kmerid(revcomp(kmerid2kmer(kmerid, kmerlen)), kmerlen)
-
-	if rckmerid < kmerid:
-		return rckmerid
-
-	return kmerid
 
 
 def word_kernel( seq1, ind2, k, dmin, dmax ):
@@ -141,6 +82,10 @@ def word_kernel( seq1, ind2, k, dmin, dmax ):
                         dot_product += 1
 
     return dot_product
+
+
+def spectrum_kernel( dot_product, mag1, mag2):
+    return dot_product/(mag1 * mag2)
 
 
 def create_kernel_matrix(n):
@@ -187,21 +132,19 @@ def fill_kernel_matrix(seqs,M,k,dmin,dmax,quiet):
                 sys.stdout.flush()
             progress_count += 1
             
-            if 
-
-            if indices[j]:
-                indj = indices[j]
-                sqmj = square_mags[j]
-            else:
-                indj = Index(seqs[j],k)
-                indeces[j] = indj
-
-            krnl = word_kernel( seqs[i], indj, k, dmin, dmax)
             if i == j:
+                indj = Index(seqs[j])
+                indices[j] = indj
+                sqmj = word_kernel(seqs[i], indj, k, dmin, dmax)
+                square_mags[j] = sqmj
                 M[i,j] = 1.0
-            else 
 
-            
+            else:
+                indj = indices[j]
+                sqmi = square_mags[i]
+                sqmj = square_mags[j]
+                krnl = word_kernel( seqs[i], indj, k, dmin, dmax)
+                M[i,j] = spectrum_kernel(krnl, math.sqrt(sqmi), math.sqrt(sqmj))
             
     if not quiet:
         print
