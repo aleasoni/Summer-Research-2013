@@ -51,7 +51,7 @@ def kpair2feat_map(kmers, homeopair, quiet):
         dictionary of kmer-pairs (a,b) to feature id number
     """
     if not quiet:
-        sys.stderr.write("creating kmer-pair to feature id map...\r")
+        sys.stderr.write("creating kmer-pair to feature id map ...\r")
         sys.stderr.write("\n")
     feature_id = 1
     kpair_id_dict = {}
@@ -152,7 +152,7 @@ def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output):
         the matrix 
     """
     if not quiet:
-        sys.stderr.write("writing feature vectors to file...\r")
+        sys.stderr.write("writing feature vectors to file ...\r")
         sys.stderr.write("\n")
 
     f = open(output, 'w')
