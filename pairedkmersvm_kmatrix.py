@@ -202,11 +202,6 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
     progress_count = 0
     total = ( (len(seqs)+2)*(len(seqs)+1) )/2.0
     for i in xrange(0,len(seqs)):
-        if not quiet and progress_count % math.ceil(total/1000.0) == 0:
-            p = (float(progress_count)/total)*100
-            sys.stdout.write("\r%.2f%% progress. " % p)
-            sys.stdout.flush()
-        progress_count += 1
         for j in xrange(0,i+1):
             if not quiet and progress_count % math.ceil(total/10000.0) == 0:
                 p = (float(progress_count)/total)*100
@@ -232,8 +227,7 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
                 feature_vectors[j] = xj
                 vector_mags[j] = mag_xj 
 
-            #M[i,j] = spectrum_kernel( xi, xj, mag_xi, mag_xj )
-            M[i,j] = inner_product( xi, xj )
+            M[i,j] = spectrum_kernel( xi, xj, mag_xi, mag_xj )
             
     if not quiet:
         print
