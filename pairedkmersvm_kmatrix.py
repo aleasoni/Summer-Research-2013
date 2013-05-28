@@ -67,8 +67,14 @@ def word_kernel( seq1, ind2, k, dmin, dmax ):
 
             for m in a_in_2:
                 for n in b_in_2:
-                    if abs(m - n) <= dmax:
-                        dot_product += 1
+                    if n > m: 
+                        if n <= m+k+dmax and n >= m+k+dmin:
+                            dot_product += 1
+                    if m > n:
+                        if n >= m-k-dmax and n <= m-dmin-k:
+                            dot_product += 1
+                    else:
+                        continue
 
         #checking for pairs to the right of 'a'
         for j in xrange(0, len(right)-k+1):
@@ -78,8 +84,14 @@ def word_kernel( seq1, ind2, k, dmin, dmax ):
 
             for m in a_in_2:
                 for n in b_in_2:
-                    if abs(m - n) <= dmax:
-                        dot_product += 1
+                    if n > m: 
+                        if n <= m+k+dmax and n >= m+k+dmin:
+                            dot_product += 1
+                    if m > n:
+                        if n >= m-k-dmax and n <= m-dmin-k:
+                            dot_product += 1
+                    else:
+                        continue
 
     return dot_product
 
@@ -137,7 +149,7 @@ def fill_kernel_matrix(seqs,M,k,dmin,dmax,quiet):
                 indices[j] = indj
                 sqmj = word_kernel(seqs[i], indj, k, dmin, dmax)
                 square_mags[j] = sqmj
-                M[i,j] = 1.0
+                M[i,j] = sqmj
 
             else:
                 indj = indices[j]
