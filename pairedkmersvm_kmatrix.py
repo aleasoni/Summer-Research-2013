@@ -81,7 +81,7 @@ def kpair2feat_map(kmers, homeopair, quiet):
     return kpair_id_dict
 
 
-def create_feature_vector( seq, features, k, dmin, dmax):
+def create_feature_vector( seq, pn, features, k, dmin, dmax):
     """ Create SVM-light format feature vector 
     Arguments:
         seq -- string, DNA sequence
@@ -124,61 +124,19 @@ def create_feature_vector( seq, features, k, dmin, dmax):
                 feature_vector[feature_id] = 0
             feature_vector[feature_id] += 1
 
-    return feature_vector
+    feature_list = []
+    for (feature, count) in feature_vector.items():
+        feature_list.append((feature,count))
+    feature_list.sort(key=lambda tup: tup[0])
+    vector = ''.join(pn)
+    for (feature,count) in feature_list:
+        vector += " " + repr(feature) + ":" + repr(count)
+
+    return vector
 
 
-def spectrum_kernel( x1, x2, mag_x1, mag_x2 ):
-    """ Calculate the spectrum kernel function applied to the inputs 
-    Arguments:
-        x1 -- map, feature vector
-        x2 -- map, feature vector
-        mag_x1 -- float, magnitude of x1
-        mag_x2 -- float, magnitude of x2
-
-    Return:
-        <x1,x2>/(|x1||x2|)
-    """
-    return inner_product(x1,x2)/(mag_x1*mag_x2)
-
-
-def inner_product( x1, x2 ):
-    """ Calculate the inner product of theh inputs 
-    Arguments:
-        x1 -- map, feature vector
-        x2 -- map, feature vector
-
-    Return:
-        <x1,x2>
-    """
-    if len(x1) < len(x2):
-        X = x1
-        Y = x2
-    else:
-        X = x2
-        Y = x1
-
-    in_product = 0
-    for ( f_id, f_count) in X.items():
-        if f_id in Y:
-            in_product += f_count * Y[f_id]
-
-    return in_product
-
-
-def create_kernel_matrix(n):
-    """ Initialize kernel matrix 
-    Arguments:
-        n -- int, matrix dimension
-
-    Return:
-        the matrix 
-    """
-    M = numpy.zeros((n,n), dtype=float)
-    return M
-
-
-def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
-    """ Fill kernel matrix 
+def write_feature_vectors(seqs,npos,nneg,features,k,dmin,dmax,quiet, output):
+    """ write feature vectors
     Arguments:
         seqs -- list of strings, DNA sequences 
         M -- numpy matrix, kernel matrix
@@ -191,7 +149,9 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
         the matrix 
     """
     if not quiet:
-        print "filling kernel matrix ... "
+        print "writing feature vectors to file ... "
+
+    f = open(output, 'w')
     
     #memorize feature vectors
     feature_vectors = [{}] * len(seqs)
@@ -200,59 +160,31 @@ def fill_kernel_matrix(seqs,M,features,k,dmin,dmax,quiet):
 
     #variables to keep trak of progress
     progress_count = 0
-    total = ( (len(seqs)+2)*(len(seqs)+1) )/2.0
-    for i in xrange(0,len(seqs)):
-        for j in xrange(0,i+1):
-            if not quiet and progress_count % math.ceil(total/10000.0) == 0:
-                p = (float(progress_count)/total)*100
-                sys.stdout.write("\r%.2f%% progress. " % p)
-                sys.stdout.flush()
-            progress_count += 1
+    total = len(seqs)
+    for i in xrange(0,npos):
+        if not quiet and progress_count % math.ceil(total/10000.0) == 0:
+            p = (float(progress_count)/total)*100
+            sys.stdout.write("\r%.2f%% progress. " % p)
+            sys.stdout.flush()
+        progress_count += 1
 
-            if not len(feature_vectors[i]) == 0:
-                xi = feature_vectors[i]
-                mag_xi = vector_mags[i]
-            else:
-                xi = create_feature_vector(seqs[i],features,k,dmin,dmax)
-                mag_xi = math.sqrt(float(inner_product(xi,xi)))
-                feature_vectors[i] = xi
-                vector_mags[i] = mag_xi 
+        f.write(create_feature_vector( seqs[i], "1", features, k, dmin, dmax )
 
-            if not len(feature_vectors[j]) == 0:
-                xj = feature_vectors[j]
-                mag_xj = vector_mags[j]
-            else:
-                xj = create_feature_vector(seqs[j],features,k,dmin,dmax)
-                mag_xj = math.sqrt(float(inner_product(xj,xj)))
-                feature_vectors[j] = xj
-                vector_mags[j] = mag_xj 
+    for i in xrange(npos,npos+nneg):
+        if not quiet and progress_count % math.ceil(total/10000.0) == 0:
+            p = (float(progress_count)/total)*100
+            sys.stdout.write("\r%.2f%% progress. " % p)
+            sys.stdout.flush()
+        progress_count += 1
 
-            M[i,j] = spectrum_kernel( xi, xj, mag_xi, mag_xj )
+        f.write(create_feature_vector( seqs[i], "-1", features, k, dmin, dmax )
             
+
     if not quiet:
         print
 
-    return M
+    return 
 
-
-def write_kernel_matrix(M,n,output):
-    """ write kernel matrix to file
-    Arguments:
-        M -- numpy matrix, kernel matrix
-        n -- int, matrix dimension
-        output -- string, name of output file
-    Return:
-        the matrix 
-    """
-    f = open(output, 'w')
-    for i in xrange(0,n):
-        s = " " + str(M[i,0])
-        f.write(s)
-        for j in xrange(1,i+1):
-            s = " " + str(M[i,j])
-            f.write(s)
-        f.write("\n")
-    return
 
 def main(argv = sys.argv):
     usage = "Usage: %prog [options] POSITIVE_SEQ NEGATIVE_SEQ OUTPUT_NAME"
@@ -293,10 +225,7 @@ def main(argv = sys.argv):
     sids = sids_pos + sids_neg
 
     kpair_map = kpair2feat_map( get_kmer_list(options.kmerlen), options.homeopair, options.quiet )
-
-    M = create_kernel_matrix(len(seqs))
-    M = fill_kernel_matrix(seqs,M,kpair_map,options.kmerlen, options.dmin, options.dmax, options.quiet)
-    write_kernel_matrix(M,len(seqs),outm)
+    write_feature_vectors(seqs,npos,nneg,kpair_map,options.kmerlen,options.dmin,options.dmax,options.quiet,outm):
 
 if __name__ =='__main__': main()
 
