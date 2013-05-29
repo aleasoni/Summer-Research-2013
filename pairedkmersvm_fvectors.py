@@ -39,8 +39,22 @@ def get_kmer_list(k):
         kmerlist.append(''.join(x))
     return kmerlist
 
+def kmer2feat_map(kmers):
+    feature_id = 1
 
-def kpair2feat_map(kmers, homeopair, quiet):
+    kmer_id_dict = {}
+    for kmer in kmers:
+        if kmer in kmer_id_dict: continue
+
+        kmer_id_dict[kmer] = feature_id
+        kmer_id_dict[revcomp(kmer)] = feature_id
+
+        feature_id += 1
+
+    return kmer_id_dict
+
+
+def kpair2feat_map(kmers, homeopair, counts, quiet):
     """ Create kmair-pair to feature id map 
     Arguments:
         kmers -- list of strings, list of all single kmers
@@ -53,7 +67,12 @@ def kpair2feat_map(kmers, homeopair, quiet):
     if not quiet:
         sys.stderr.write("creating kmer-pair to feature id map ...\r")
         sys.stderr.write("\n")
-    feature_id = 1
+
+    if not counts:
+        feature_id = 1
+    else:
+        feature_id = len(kmer_map) + 1
+
     kpair_id_dict = {}
     #variables to keep track of progress
     progress_count = 0
@@ -84,11 +103,10 @@ def kpair2feat_map(kmers, homeopair, quiet):
     return kpair_id_dict
 
 
-def create_feature_vector( seq, pn, features, k, dmin, dmax):
+def create_feature_vector( seq, pn, k, dmin, dmax, spectrum, counts):
     """ Create SVM-light format feature vector 
     Arguments:
         seq -- string, DNA sequence
-        features -- dictionary, kmer pair to feature id map
         k -- integer, kmer length
         dmin -- integer, mininmum distance b/w kmer pair
         dmax -- integer, maximum distance b/w kmer pair
@@ -97,6 +115,16 @@ def create_feature_vector( seq, pn, features, k, dmin, dmax):
         feature vector for seq
     """
     feature_vector = {}
+
+    if counts:
+        for i in xrange(0, len(seq)-k+1):
+            kmer = seq[i:i+k]
+            feature_id = kmer_map[kmer]
+
+            if feature_id not in feature_vector:
+                feature_vector[feature_id] = 0
+            feature_vector[feature_id] += 1
+
     for i in xrange(0, len(seq)-k+1):
         a = seq[i:i+k]
         left  = seq[max(0, i-(dmax+k)):max(0, i-dmin)]
@@ -104,10 +132,10 @@ def create_feature_vector( seq, pn, features, k, dmin, dmax):
         #checking for pairs to the left of 'a'
         for j in xrange(0, len(left)-k+1):
             b = left[j:j+k]
-            if (a,b) in features:
-                feature_id = features[(a,b)]
-            elif (b,a) in features:
-                feature_id = features[(b,a)]
+            if (a,b) in kpair_map:
+                feature_id = kpair_map[(a,b)]
+            elif (b,a) in kpair_map:
+                feature_id = kpair_map[(b,a)]
             else: continue
 
             if feature_id not in feature_vector:
@@ -117,10 +145,10 @@ def create_feature_vector( seq, pn, features, k, dmin, dmax):
         #checking for pairs to the right of 'a'
         for j in xrange(0, len(right)-k+1):
             b = right[j:j+k]
-            if (a,b) in features:
-                feature_id = features[(a,b)]
-            elif (b,a) in features:
-                feature_id = features[(b,a)]
+            if (a,b) in kpair_map:
+                feature_id = kpair_map[(a,b)]
+            elif (b,a) in kpair_map:
+                feature_id = kpair_map[(b,a)]
             else: continue
 
             if feature_id not in feature_vector:
@@ -128,17 +156,24 @@ def create_feature_vector( seq, pn, features, k, dmin, dmax):
             feature_vector[feature_id] += 1
 
     feature_list = []
+    mag = 0.0
     for (feature, count) in feature_vector.items():
         feature_list.append((feature,count))
+        mag += count**2
+
+    mag = math.sqrt(mag)
     feature_list.sort(key=lambda tup: tup[0])
     vector = ''.join(str(pn))
     for (feature,count) in feature_list:
-        vector += " " + str(feature) + ":" + str(count)
+        if spectrum:
+            vector += " " + str(feature) + ":" + str(float(count)/mag)
+        else: 
+            vector += " " + str(feature) + ":" + str(count)
 
     return vector
 
 
-def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output):
+def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output,spectrum,counts):
     """ write feature vectors
     Arguments:
         seqs -- list of strings, DNA sequences 
@@ -167,7 +202,7 @@ def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output):
             sys.stderr.flush()
         progress_count += 1
 
-        f.write(create_feature_vector( seqs[i], labs[i], kpair_map, k, dmin, dmax ))
+        f.write(create_feature_vector( seqs[i], labs[i], k, dmin, dmax, spectrum, counts ))
         f.write("\n")
 
     f.close()
@@ -248,7 +283,7 @@ def split_cv_list(cvlist, icv, data):
 def svm_learn(seqs, labs, icv, options):
     cv_train = "cv"+str(icv)+".train"
     cv_model = "cv"+str(icv)+".model"
-    write_feature_vectors( seqs, labs, options.kmerlen, options.dmin, options.dmax, options.quiet, cv_train )
+    write_feature_vectors( seqs, labs, options.kmerlen, options.dmin, options.dmax, options.quiet, cv_train, options.spectrum, options.counts )
     cmd = "svm_learn " + cv_train + " " + cv_model
     
     if not options.quiet:
@@ -271,7 +306,7 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
     cv_test = "cv"+str(icv)+".test"
     cv_model = svm_cv
     cv_output = "cv"+str(icv)+".output"
-    write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.dmin, options.dmax, options.quiet, cv_test )
+    write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.dmin, options.dmax, options.quiet, cv_test, options.spectrum, options.counts )
     cmd = "svm_classify " + cv_test + " " + cv_model + " " + cv_output
     if not options.quiet:
         sys.stderr.write("executing: " + cmd + "\n")
@@ -299,17 +334,30 @@ def main(argv = sys.argv):
     parser = optparse.OptionParser(usage=usage, description=desc)
     parser.add_option("-k", dest="kmerlen", type=int, \
             help="set kmer length", default=6)
+
     parser.add_option("-d", dest="dmin", type=int, \
             help="set minimum distance between kmer pair", default=0)
+
     parser.add_option("-D", dest="dmax", type=int, \
             help="set maximum distance between kmer pair", default=50)
+
     parser.add_option("-H", dest="homeopair", default=True, \
             help="don't use duplicate kmer pair as feature", action="store_false")
+
     parser.add_option("-q", dest="quiet", default=False, action="store_true", \
             help="supress messages (default=false)")
+
     parser.add_option("-v", dest="ncv", type="int", default=0, \
             help="if set, it will perform N-fold cross-validation and generate a prediction file (default = 0)")
+
+    parser.add_option("-c", dest="counts", default=False, \
+            help="use single kmer counts as features (default=false)", action="store_true")
+
+    parser.add_option("-s", dest="spectrum", default=False, \
+			help="set the type of kernel to spectrum (default=false)", action="store_true")
+
     (options, args) = parser.parse_args()
+
 
     if len(args) == 0:
         parser.print_help()
@@ -334,9 +382,17 @@ def main(argv = sys.argv):
     #generate labels
     labels = [1]*npos + [-1]*nneg
 
+    #list of kmers of length kmerlen
+    kmers = get_kmer_list(options.kmerlen)
+
+    if options.counts:
+        #global variable
+        global kmer_map
+        kmer_map = kmer2feat_map(kmers)
+
     #global variable
     global kpair_map
-    kpair_map = kpair2feat_map( get_kmer_list(options.kmerlen), options.homeopair, options.quiet )
+    kpair_map = kpair2feat_map( kmers, options.homeopair, options.counts, options.quiet )
 
     if options.ncv > 0:
         if options.quiet == False:
@@ -371,7 +427,7 @@ def main(argv = sys.argv):
         save_predictions(output_cvpred, prediction_results, cvlist)
 
     else:
-        write_feature_vectors(seqs,labels,options.kmerlen,options.dmin,options.dmax,options.quiet,outm)
+        write_feature_vectors(seqs,labels,options.kmerlen,options.dmin,options.dmax,options.quiet,outm, options.spectrum, options.counts)
 
 if __name__ =='__main__': main()
 
