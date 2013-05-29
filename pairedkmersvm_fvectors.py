@@ -74,8 +74,7 @@ def kpair2feat_map(kmers, homeopair, counts, quiet):
         dictionary of kmer-pairs (a,b) to feature id number
     """
     if not quiet:
-        sys.stderr.write("creating kmer-pair to feature id map ...\r")
-        sys.stderr.write("\n")
+        sys.stderr.write("creating kmer-pair to feature id map...\n")
 
     if not counts:
         feature_id = 1
@@ -200,8 +199,7 @@ def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output,spectrum,counts):
 
     """
     if not quiet:
-        sys.stderr.write("writing feature vectors to file ...\r")
-        sys.stderr.write("\n")
+        sys.stderr.write("writing feature vectors to file...\n")
 
     f = open(output, 'w')
     
@@ -293,6 +291,7 @@ def split_cv_list(cvlist, icv, data):
     
     return tr_data, te_data
 
+
 def svm_learn(seqs, labs, icv, options):
     """train svm by calling svm_learn (from svm_light package)
 
@@ -365,7 +364,7 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
                            options.quiet, cv_test, options.spectrum, options.counts )
     cmd = "svm_classify " + cv_test + " " + cv_model + " " + cv_output
     if not options.quiet:
-        sys.stderr.write("executing: " + cmd + "\n")
+        sys.stderr.write("executing: " + cmd + "...\n")
 
     proc = Popen(["svm_classify", cv_test, cv_model, cv_output], stdout=PIPE)
 
@@ -400,9 +399,7 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
 
 def main(argv = sys.argv):
     usage = "Usage: %prog [options] POSITIVE_SEQ NEGATIVE_SEQ OUTPUT_NAME"
-    desc  = "1. take two files(FASTA format) as input, \
-             2. train an SVM and store the trained SVM weights"
-    parser = optparse.OptionParser(usage=usage, description=desc)
+    parser = optparse.OptionParser(usage=usage)
     parser.add_option("-k", dest="kmerlen", type=int, \
             help="set kmer length", default=6)
 
