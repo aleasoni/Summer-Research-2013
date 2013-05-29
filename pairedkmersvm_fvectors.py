@@ -40,6 +40,13 @@ def get_kmer_list(k):
     return kmerlist
 
 def kmer2feat_map(kmers):
+    """ Genrate single kmers to feature id map
+    Arguments:
+        kmers -- list, all kmers
+
+    Return:
+        dictionary of kmer to feature id
+    """
     feature_id = 1
 
     kmer_id_dict = {}
@@ -59,6 +66,7 @@ def kpair2feat_map(kmers, homeopair, counts, quiet):
     Arguments:
         kmers -- list of strings, list of all single kmers
         homeopair -- boolean, if true a pair of equal kmers is used as feature
+        counts -- boolean, if true use single kmer counts as features
         quiet -- boolean, if true it suppresses messages
 
     Return:
@@ -107,9 +115,12 @@ def create_feature_vector( seq, pn, k, dmin, dmax, spectrum, counts):
     """ Create SVM-light format feature vector 
     Arguments:
         seq -- string, DNA sequence
+        pn -- integer, pos/neg - [1/-1]
         k -- integer, kmer length
         dmin -- integer, mininmum distance b/w kmer pair
         dmax -- integer, maximum distance b/w kmer pair
+        spectrum -- boolean, return normalized vector
+        counts -- boolean, use single kmer counts as features
 
     Return:
         feature vector for seq
@@ -177,14 +188,15 @@ def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output,spectrum,counts):
     """ write feature vectors
     Arguments:
         seqs -- list of strings, DNA sequences 
-        M -- numpy matrix, kernel matrix
+        labs -- list, labels
         k -- integer, kmer length
         dmin -- integer, mininmum distance b/w kmer pair
         dmax -- integer, maximum distance b/w kmer pair
         quiet -- boolean, if true it suppresses messages
+        output -- string, name of output file
+        spectrum -- boolean, normalize feature vector
+        counts -- boolean, use single kmer counts
 
-    Return:
-        the matrix 
     """
     if not quiet:
         sys.stderr.write("writing feature vectors to file ...\r")
@@ -281,6 +293,17 @@ def split_cv_list(cvlist, icv, data):
     return tr_data, te_data
 
 def svm_learn(seqs, labs, icv, options):
+    """train svm by calling svm_learn (from svm_light package)
+
+    Arguments:
+    seqs -- list, sequences 
+    labs -- list, labels
+    icv -- integer, corss-validation set of interest
+    options -- object containing option data 
+
+    Return:
+    name of model file for the trained svm
+    """
     cv_train = "cv"+str(icv)+".train"
     cv_model = "cv"+str(icv)+".model"
     write_feature_vectors( seqs, labs, options.kmerlen, options.dmin, options.dmax, options.quiet, cv_train, options.spectrum, options.counts )
@@ -302,6 +325,18 @@ def svm_learn(seqs, labs, icv, options):
 
 
 def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
+    """test svm by calling svm_classify (from svm_light package)
+
+    Arguments:
+    seqs_te -- list, test sequences 
+    labs_te -- list, test labels
+    icv -- integer, corss-validation set of interest
+    svm_cv -- string, name of trained svm model file
+    options -- object containing option data 
+
+    Return:
+    name of model file for the trained svm
+    """
     cv_pred = []
     cv_test = "cv"+str(icv)+".test"
     cv_model = svm_cv
@@ -366,6 +401,10 @@ def main(argv = sys.argv):
     if len(args) != 3:
         parser.error("incorrect number of arguments")
         parser.print_help()
+        sys.exit(0)
+
+    if options.dmax < options.dmin + options.kmerlen:
+        sys.stderr.write("error: dmax must be >= (dmin + kmerlen)\n")
         sys.exit(0)
 
     posf = args[0]
