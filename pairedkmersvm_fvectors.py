@@ -74,7 +74,7 @@ def kpair2feat_map(kmers, homeopair, counts, quiet):
         dictionary of kmer-pairs (a,b) to feature id number
     """
     if not quiet:
-        sys.stderr.write("creating kmer-pair to feature id map...\n")
+        sys.stderr.write("Creating kmer-pair to feature id map...\n")
 
     if not counts:
         feature_id = 1
@@ -199,7 +199,7 @@ def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output,spectrum,counts):
 
     """
     if not quiet:
-        sys.stderr.write("writing feature vectors to file...\n")
+        sys.stderr.write("Writing feature vectors to file...\n")
 
     f = open(output, 'w')
     
@@ -311,7 +311,7 @@ def svm_learn(seqs, labs, icv, options):
     cmd = "svm_learn " + cv_train + " " + cv_model
     
     if not options.quiet:
-        sys.stderr.write("executing: " + cmd + "...\n")
+        sys.stderr.write("Executing: " + cmd + "...\n")
 
     proc = Popen(["svm_learn", cv_train, cv_model], stdout=PIPE)
 
@@ -336,7 +336,7 @@ def svm_learn(seqs, labs, icv, options):
 
     cmd = "rm " + cv_train
     if not options.quiet:
-        sys.stderr.write("executing: " + cmd + "\n")
+        sys.stderr.write("Executing: " + cmd + "\n")
 
     call(["rm", cv_train])
 
@@ -364,7 +364,7 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
                            options.quiet, cv_test, options.spectrum, options.counts )
     cmd = "svm_classify " + cv_test + " " + cv_model + " " + cv_output
     if not options.quiet:
-        sys.stderr.write("executing: " + cmd + "...\n")
+        sys.stderr.write("Executing: " + cmd + "...\n")
 
     proc = Popen(["svm_classify", cv_test, cv_model, cv_output], stdout=PIPE)
 
@@ -390,7 +390,7 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
 
     cmd = "rm " + cv_output + " " + cv_test + " " + cv_model
     if not options.quiet:
-        sys.stderr.write("executing: " + cmd + "\n")
+        sys.stderr.write("Executing: " + cmd + "\n")
 
     call(["rm", cv_output, cv_test, cv_model])
 
@@ -468,7 +468,7 @@ def main(argv = sys.argv):
 
     if options.ncv > 0:
         if options.quiet == False:
-            sys.stderr.write('cross-validation...\n')
+            sys.stderr.write('Cross-validation...\n')
 
         cvlist = generate_cv_list(options.ncv, npos, nneg)
         labels_cv = []
@@ -477,7 +477,7 @@ def main(argv = sys.argv):
         indices_cv = []
         for icv in xrange(options.ncv):
             if options.quiet == False:
-                sys.stderr.write("running cross validation number " + str(icv+1)  + " ...\n")
+                sys.stderr.write("Running cross validation number " + str(icv+1)  + " ...\n")
             #split data into training and test set
             seqs_tr, seqs_te = split_cv_list(cvlist, icv, seqs) 
             labs_tr, labs_te = split_cv_list(cvlist, icv, labels)
