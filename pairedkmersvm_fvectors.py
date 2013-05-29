@@ -30,10 +30,10 @@ from libkmersvm import *
 def get_kmer_list(k):
     """ Genrate list of all possible kmers of length k 
     Arguments:
-        k -- int, kmer length
+    k -- int, kmer length
 
     Return:
-        list of all possible kmers of length k
+    list of all possible kmers of length k
     """
     kmerlist = []
     for x in product('ACGT', repeat=k):
@@ -43,10 +43,10 @@ def get_kmer_list(k):
 def kmer2feat_map(kmers):
     """ Genrate single kmers to feature id map
     Arguments:
-        kmers -- list, all kmers
+    kmers -- list, all kmers
 
     Return:
-        dictionary of kmer to feature id
+    dictionary of kmer to feature id
     """
     feature_id = 1
 
@@ -65,13 +65,13 @@ def kmer2feat_map(kmers):
 def kpair2feat_map(kmers, homeopair, counts, quiet):
     """ Create kmair-pair to feature id map 
     Arguments:
-        kmers -- list of strings, list of all single kmers
-        homeopair -- boolean, if true a pair of equal kmers is used as feature
-        counts -- boolean, if true use single kmer counts as features
-        quiet -- boolean, if true it suppresses messages
+    kmers -- list of strings, list of all single kmers
+    homeopair -- boolean, if true a pair of equal kmers is used as feature
+    counts -- boolean, if true use single kmer counts as features
+    quiet -- boolean, if true it suppresses messages
 
     Return:
-        dictionary of kmer-pairs (a,b) to feature id number
+    dictionary of kmer-pairs (a,b) to feature id number
     """
     if not quiet:
         sys.stderr.write("Creating kmer-pair to feature id map...\n")
@@ -114,16 +114,16 @@ def kpair2feat_map(kmers, homeopair, counts, quiet):
 def create_feature_vector( seq, pn, k, dmin, dmax, spectrum, counts):
     """ Create SVM-light format feature vector 
     Arguments:
-        seq -- string, DNA sequence
-        pn -- integer, pos/neg - [1/-1]
-        k -- integer, kmer length
-        dmin -- integer, mininmum distance b/w kmer pair
-        dmax -- integer, maximum distance b/w kmer pair
-        spectrum -- boolean, return normalized vector
-        counts -- boolean, use single kmer counts as features
+    seq -- string, DNA sequence
+    pn -- integer, pos/neg - [1/-1]
+    k -- integer, kmer length
+    dmin -- integer, mininmum distance b/w kmer pair
+    dmax -- integer, maximum distance b/w kmer pair
+    spectrum -- boolean, return normalized vector
+    counts -- boolean, use single kmer counts as features
 
     Return:
-        feature vector for seq
+    feature vector for seq
     """
     feature_vector = {}
 
@@ -187,15 +187,15 @@ def create_feature_vector( seq, pn, k, dmin, dmax, spectrum, counts):
 def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output,spectrum,counts):
     """ write feature vectors
     Arguments:
-        seqs -- list of strings, DNA sequences 
-        labs -- list, labels
-        k -- integer, kmer length
-        dmin -- integer, mininmum distance b/w kmer pair
-        dmax -- integer, maximum distance b/w kmer pair
-        quiet -- boolean, if true it suppresses messages
-        output -- string, name of output file
-        spectrum -- boolean, normalize feature vector
-        counts -- boolean, use single kmer counts
+    seqs -- list of strings, DNA sequences 
+    labs -- list, labels
+    k -- integer, kmer length
+    dmin -- integer, mininmum distance b/w kmer pair
+    dmax -- integer, maximum distance b/w kmer pair
+    quiet -- boolean, if true it suppresses messages
+    output -- string, name of output file
+    spectrum -- boolean, normalize feature vector
+    counts -- boolean, use single kmer counts
 
     """
     if not quiet:
@@ -467,8 +467,6 @@ def main(argv = sys.argv):
     kpair_map = kpair2feat_map( kmers, options.homeopair, options.counts, options.quiet )
 
     if options.ncv > 0:
-        if options.quiet == False:
-            sys.stderr.write('Cross-validation...\n')
 
         cvlist = generate_cv_list(options.ncv, npos, nneg)
         labels_cv = []
@@ -477,7 +475,7 @@ def main(argv = sys.argv):
         indices_cv = []
         for icv in xrange(options.ncv):
             if options.quiet == False:
-                sys.stderr.write("Running cross validation number " + str(icv+1)  + " ...\n")
+                sys.stderr.write("--- CROSS VALIDATION  " + str(icv+1)  + " ---\n")
             #split data into training and test set
             seqs_tr, seqs_te = split_cv_list(cvlist, icv, seqs) 
             labs_tr, labs_te = split_cv_list(cvlist, icv, labels)
