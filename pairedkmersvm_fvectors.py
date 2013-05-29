@@ -21,7 +21,8 @@ import optparse
 import numpy
 import math
 import random
-from subprocess import call
+import re
+from subprocess import call, Popen, PIPE
 from itertools import product
 from libkmersvm import *
 
@@ -306,14 +307,33 @@ def svm_learn(seqs, labs, icv, options):
     """
     cv_train = "cv"+str(icv)+".train"
     cv_model = "cv"+str(icv)+".model"
-    write_feature_vectors( seqs, labs, options.kmerlen, options.dmin, options.dmax, options.quiet, cv_train, options.spectrum, options.counts )
+    write_feature_vectors( seqs, labs, options.kmerlen, options.dmin, options.dmax,\
+                           options.quiet, cv_train, options.spectrum, options.counts )
     cmd = "svm_learn " + cv_train + " " + cv_model
     
     if not options.quiet:
-        sys.stderr.write("executing: " + cmd + " ...\n")
+        sys.stderr.write("executing: " + cmd + "...\n")
 
-    with open(os.devnull, "w") as fnull:
-        result = call(["svm_learn", cv_train, cv_model], stdout=fnull, stderr=fnull)
+    proc = Popen(["svm_learn", cv_train, cv_model], stdout=PIPE)
+
+    if not options.quiet:
+        p1 = re.compile("Reading*")
+        p2 = re.compile("Setting default*")
+        p3 = re.compile("Optimization finished*")
+        while True:
+            line = proc.stdout.readline()
+            if line != '':
+                m = p1.match(line)
+                if m:
+                    sys.stderr.write("[svm_learn]: done scanning examples.\n")
+                m = p2.match(line)
+                if m:
+                    sys.stderr.write("[svm_learn]: done reading examples into memory.\n")
+                m = p3.match(line)
+                if m:
+                    sys.stderr.write("[svm_learn]: done optimizing.\n")
+            else:
+                break
 
     cmd = "rm " + cv_train
     if not options.quiet:
@@ -341,13 +361,29 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
     cv_test = "cv"+str(icv)+".test"
     cv_model = svm_cv
     cv_output = "cv"+str(icv)+".output"
-    write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.dmin, options.dmax, options.quiet, cv_test, options.spectrum, options.counts )
+    write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.dmin, options.dmax,\
+                           options.quiet, cv_test, options.spectrum, options.counts )
     cmd = "svm_classify " + cv_test + " " + cv_model + " " + cv_output
     if not options.quiet:
         sys.stderr.write("executing: " + cmd + "\n")
 
-    with open(os.devnull, "w") as fnull:
-        result = call(["svm_classify", cv_test, cv_model, cv_output], stdout=fnull, stderr=fnull)
+    proc = Popen(["svm_classify", cv_test, cv_model, cv_output], stdout=PIPE)
+
+    if not options.quiet:
+        p1 = re.compile("Classifying test*")
+        p2 = re.compile("Runtime \(*")
+        while True:
+            line = proc.stdout.readline()
+            if line != '':
+                m = p1.match(line)
+                if m:
+                    sys.stderr.write("[svm_classify]: done reading model.\n")
+
+                m = p2.match(line)
+                if m:
+                    sys.stderr.write("[svm_classify]: done classifying examples.\n")
+            else:
+                break
 
     f = open(cv_output, 'r')
     for line in f:
