@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/groups/beer/aasoni/bin/python
 """
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -304,8 +304,8 @@ def svm_learn(seqs, labs, icv, options):
     Return:
     name of model file for the trained svm
     """
-    cv_train = "cv"+str(icv)+".train"
-    cv_model = "cv"+str(icv)+".model"
+    cv_train = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".train"
+    cv_model = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".model"
     write_feature_vectors( seqs, labs, options.kmerlen, options.dmin, options.dmax,\
                            options.quiet, cv_train, options.spectrum, options.counts )
     cmd = "svm_learn " + cv_train + " " + cv_model
@@ -357,9 +357,9 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
     name of model file for the trained svm
     """
     cv_pred = []
-    cv_test = "cv"+str(icv)+".test"
+    cv_test = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".test"
     cv_model = svm_cv
-    cv_output = "cv"+str(icv)+".output"
+    cv_output = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".output"
     write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.dmin, options.dmax,\
                            options.quiet, cv_test, options.spectrum, options.counts )
     cmd = "svm_classify " + cv_test + " " + cv_model + " " + cv_output
