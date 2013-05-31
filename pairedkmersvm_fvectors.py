@@ -82,6 +82,7 @@ def kpair2feat_map(kmers, homeopair, counts, quiet):
         feature_id = len(kmer_map) + 1
 
     kpair_id_dict = {}
+    return kpair_id_dict
     #variables to keep track of progress
     progress_count = 0
     total = len(kmers)
@@ -136,35 +137,35 @@ def create_feature_vector( seq, pn, k, dmin, dmax, spectrum, counts):
                 feature_vector[feature_id] = 0
             feature_vector[feature_id] += 1
 
-    for i in xrange(0, len(seq)-k+1):
-        a = seq[i:i+k]
-        left  = seq[max(0, i-(dmax+k)):max(0, i-dmin)]
-        right = seq[min(len(seq),i+k+dmin):min(len(seq),i+dmax+k+k)]
-        #checking for pairs to the left of 'a'
-        for j in xrange(0, len(left)-k+1):
-            b = left[j:j+k]
-            if (a,b) in kpair_map:
-                feature_id = kpair_map[(a,b)]
-            elif (b,a) in kpair_map:
-                feature_id = kpair_map[(b,a)]
-            else: continue
+    #for i in xrange(0, len(seq)-k+1):
+    #    a = seq[i:i+k]
+    #    left  = seq[max(0, i-(dmax+k)):max(0, i-dmin)]
+    #    right = seq[min(len(seq),i+k+dmin):min(len(seq),i+dmax+k+k)]
+    #    #checking for pairs to the left of 'a'
+    #    for j in xrange(0, len(left)-k+1):
+    #        b = left[j:j+k]
+    #        if (a,b) in kpair_map:
+    #            feature_id = kpair_map[(a,b)]
+    #        elif (b,a) in kpair_map:
+    #            feature_id = kpair_map[(b,a)]
+    #        else: continue
 
-            if feature_id not in feature_vector:
-                feature_vector[feature_id] = 0
-            feature_vector[feature_id] += 1
+    #        if feature_id not in feature_vector:
+    #            feature_vector[feature_id] = 0
+    #        feature_vector[feature_id] += 1
 
-        #checking for pairs to the right of 'a'
-        for j in xrange(0, len(right)-k+1):
-            b = right[j:j+k]
-            if (a,b) in kpair_map:
-                feature_id = kpair_map[(a,b)]
-            elif (b,a) in kpair_map:
-                feature_id = kpair_map[(b,a)]
-            else: continue
+    #    #checking for pairs to the right of 'a'
+    #    for j in xrange(0, len(right)-k+1):
+    #        b = right[j:j+k]
+    #        if (a,b) in kpair_map:
+    #            feature_id = kpair_map[(a,b)]
+    #        elif (b,a) in kpair_map:
+    #            feature_id = kpair_map[(b,a)]
+    #        else: continue
 
-            if feature_id not in feature_vector:
-                feature_vector[feature_id] = 0
-            feature_vector[feature_id] += 1
+    #        if feature_id not in feature_vector:
+    #            feature_vector[feature_id] = 0
+    #        feature_vector[feature_id] += 1
 
     feature_list = []
     mag = 0.0
