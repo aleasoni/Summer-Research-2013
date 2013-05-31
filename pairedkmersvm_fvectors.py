@@ -143,7 +143,7 @@ def create_feature_vector( seq, pn, k, dmin, dmax, spectrum, counts):
 
     for i in xrange(0, len(seq)-k-k-dmax+1):
         a = seq[i:i+k]
-        window = seq[min(len(seq),i+k+dmin):min(len(seq),i+dmax+k+k)]
+        window = seq[i+k+dmin:i+dmax+k+k]
         #checking for pairs to the right of 'a'
         for j in xrange(0, len(window)-k+1):
             b = window[j:j+k]
@@ -311,7 +311,7 @@ def svm_learn(seqs, labs, icv, options):
         p1 = re.compile("Reading*")
         p2 = re.compile("Setting default*")
         p3 = re.compile("Optimization finished*")
-        p4 = re.compile("Number of*")
+        p4 = re.compile("Number of SV*")
         while True:
             line = proc.stdout.readline()
             if line != '':
@@ -368,7 +368,7 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
     if not options.quiet:
         p1 = re.compile("Classifying test*")
         p2 = re.compile("Runtime \(*")
-        p3 = re.compile("Accuracy \(*")
+        p3 = re.compile(".*(?= \(\d+ correct)")
         while True:
             line = proc.stdout.readline()
             if line != '':
@@ -382,7 +382,7 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
 
                 m = p3.match(line)
                 if m:
-                    sys.stderr.write(line.rstrip() + ".\n")
+                    sys.stderr.write(m.group(0) + ".\n")
             else:
                 break
 
@@ -429,6 +429,9 @@ def main(argv = sys.argv):
     parser.add_option("-x", dest="direct", default=False, \
 			help="use distinct features for distinct revcomp directions (default=false)", action="store_true")
 
+    parser.add_option("-o", dest="overlap", default=False, \
+			help="use overlapping kmers (sets dmin=-kmerlen+1)", action="store_true")
+
     (options, args) = parser.parse_args()
 
 
@@ -444,6 +447,9 @@ def main(argv = sys.argv):
     if options.dmax < options.dmin + options.kmerlen:
         sys.stderr.write("error: dmax must be >= (dmin + kmerlen)\n")
         sys.exit(0)
+
+    if options.overlap:
+        options.dmin = options.kmerlen*(-1) + 1
 
     posf = args[0]
     negf = args[1]
