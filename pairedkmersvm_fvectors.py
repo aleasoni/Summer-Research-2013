@@ -62,7 +62,7 @@ def kmer2feat_map(kmers):
     return kmer_id_dict
 
 
-def kpair2feat_map(kmers, homeopair, counts, quiet):
+def kpair2feat_map(kmers, homeopair, counts, direction, quiet):
     """ Create kmair-pair to feature id map 
     Arguments:
     kmers -- list of strings, list of all single kmers
@@ -76,13 +76,11 @@ def kpair2feat_map(kmers, homeopair, counts, quiet):
     if not quiet:
         sys.stderr.write("Creating kmer-pair to feature id map...\n")
 
-    if not counts:
-        feature_id = 1
-    else:
-        feature_id = len(kmer_map) + 1
+    feature_id = 1
+    if counts:
+        feature_id += max(kmer_map.itervalues())
 
     kpair_id_dict = {}
-    return kpair_id_dict
     #variables to keep track of progress
     progress_count = 0
     total = len(kmers)
@@ -102,9 +100,15 @@ def kpair2feat_map(kmers, homeopair, counts, quiet):
             if (b,a) in kpair_id_dict: continue
 
             kpair_id_dict[ (a,b) ] = feature_id
-            kpair_id_dict[ (a,revcomp(b)) ] = feature_id
-            kpair_id_dict[ (revcomp(a),b) ] = feature_id
             kpair_id_dict[ (revcomp(a),revcomp(b)) ] = feature_id
+
+            if direction:
+                feature_id += 1
+                kpair_id_dict[ (a,revcomp(b)) ] = feature_id
+                kpair_id_dict[ (revcomp(a),b) ] = feature_id
+            else:
+                kpair_id_dict[ (a,revcomp(b)) ] = feature_id
+                kpair_id_dict[ (revcomp(a),b) ] = feature_id
 
             feature_id += 1
     if not quiet:
@@ -137,41 +141,28 @@ def create_feature_vector( seq, pn, k, dmin, dmax, spectrum, counts):
                 feature_vector[feature_id] = 0
             feature_vector[feature_id] += 1
 
-    #for i in xrange(0, len(seq)-k+1):
-    #    a = seq[i:i+k]
-    #    left  = seq[max(0, i-(dmax+k)):max(0, i-dmin)]
-    #    right = seq[min(len(seq),i+k+dmin):min(len(seq),i+dmax+k+k)]
-    #    #checking for pairs to the left of 'a'
-    #    for j in xrange(0, len(left)-k+1):
-    #        b = left[j:j+k]
-    #        if (a,b) in kpair_map:
-    #            feature_id = kpair_map[(a,b)]
-    #        elif (b,a) in kpair_map:
-    #            feature_id = kpair_map[(b,a)]
-    #        else: continue
+    for i in xrange(0, len(seq)-k-k-dmax+1):
+        a = seq[i:i+k]
+        window = seq[min(len(seq),i+k+dmin):min(len(seq),i+dmax+k+k)]
+        #checking for pairs to the right of 'a'
+        for j in xrange(0, len(window)-k+1):
+            b = window[j:j+k]
+            if (a,b) in kpair_map:
+                feature_id = kpair_map[(a,b)]
+            elif (b,a) in kpair_map:
+                feature_id = kpair_map[(b,a)]
+            else: continue
 
-    #        if feature_id not in feature_vector:
-    #            feature_vector[feature_id] = 0
-    #        feature_vector[feature_id] += 1
-
-    #    #checking for pairs to the right of 'a'
-    #    for j in xrange(0, len(right)-k+1):
-    #        b = right[j:j+k]
-    #        if (a,b) in kpair_map:
-    #            feature_id = kpair_map[(a,b)]
-    #        elif (b,a) in kpair_map:
-    #            feature_id = kpair_map[(b,a)]
-    #        else: continue
-
-    #        if feature_id not in feature_vector:
-    #            feature_vector[feature_id] = 0
-    #        feature_vector[feature_id] += 1
+            if feature_id not in feature_vector:
+                feature_vector[feature_id] = 0
+            feature_vector[feature_id] += 1
 
     feature_list = []
     mag = 0.0
     for (feature, count) in feature_vector.items():
         feature_list.append((feature,count))
-        mag += count**2
+        if spectrum:
+            mag += count**2
 
     mag = math.sqrt(mag)
     feature_list.sort(key=lambda tup: tup[0])
@@ -320,6 +311,7 @@ def svm_learn(seqs, labs, icv, options):
         p1 = re.compile("Reading*")
         p2 = re.compile("Setting default*")
         p3 = re.compile("Optimization finished*")
+        p4 = re.compile("Number of*")
         while True:
             line = proc.stdout.readline()
             if line != '':
@@ -331,7 +323,11 @@ def svm_learn(seqs, labs, icv, options):
                     sys.stderr.write("[svm_learn]: done reading examples into memory.\n")
                 m = p3.match(line)
                 if m:
-                    sys.stderr.write("[svm_learn]: done optimizing.\n")
+                    sys.stderr.write("[svm_learn]: done optimizing...")
+
+                m = p4.match(line)
+                if m:
+                    sys.stderr.write( line.rstrip() + ".\n")
             else:
                 break
 
@@ -372,6 +368,7 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
     if not options.quiet:
         p1 = re.compile("Classifying test*")
         p2 = re.compile("Runtime \(*")
+        p3 = re.compile("Accuracy \(*")
         while True:
             line = proc.stdout.readline()
             if line != '':
@@ -381,7 +378,11 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
 
                 m = p2.match(line)
                 if m:
-                    sys.stderr.write("[svm_classify]: done classifying examples.\n")
+                    sys.stderr.write("[svm_classify]: done classifying examples...")
+
+                m = p3.match(line)
+                if m:
+                    sys.stderr.write(line.rstrip() + ".\n")
             else:
                 break
 
@@ -425,6 +426,9 @@ def main(argv = sys.argv):
     parser.add_option("-s", dest="spectrum", default=False, \
 			help="set the type of kernel to spectrum (default=false)", action="store_true")
 
+    parser.add_option("-x", dest="direct", default=False, \
+			help="use distinct features for distinct revcomp directions (default=false)", action="store_true")
+
     (options, args) = parser.parse_args()
 
 
@@ -465,7 +469,7 @@ def main(argv = sys.argv):
 
     #global variable
     global kpair_map
-    kpair_map = kpair2feat_map( kmers, options.homeopair, options.counts, options.quiet )
+    kpair_map = kpair2feat_map( kmers, options.homeopair, options.counts, options.direct, options.quiet )
 
     if options.ncv > 0:
 
