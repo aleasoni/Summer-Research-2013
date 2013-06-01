@@ -62,12 +62,11 @@ def kmer2feat_map(kmers):
     return kmer_id_dict
 
 
-def kpair2feat_map(kmers, homeopair, counts, direction, quiet):
+def kpair2feat_map(kmers, homeopair, direction, quiet):
     """ Create kmair-pair to feature id map 
     Arguments:
     kmers -- list of strings, list of all single kmers
     homeopair -- boolean, if true a pair of equal kmers is used as feature
-    counts -- boolean, if true use single kmer counts as features
     quiet -- boolean, if true it suppresses messages
 
     Return:
@@ -77,7 +76,7 @@ def kpair2feat_map(kmers, homeopair, counts, direction, quiet):
         sys.stderr.write("Creating kmer-pair to feature id map...\n")
 
     feature_id = 1
-    if counts:
+    if kmer_map:
         feature_id += max(kmer_map.itervalues())
 
     kpair_id_dict = {}
@@ -116,7 +115,7 @@ def kpair2feat_map(kmers, homeopair, counts, direction, quiet):
     return kpair_id_dict
 
 
-def create_feature_vector( seq, pn, k, dmin, dmax, spectrum, counts):
+def create_feature_vector( seq, pn, k, skmerlen, dmin, dmax, scounts):
     """ Create SVM-light format feature vector 
     Arguments:
     seq -- string, DNA sequence
@@ -124,59 +123,51 @@ def create_feature_vector( seq, pn, k, dmin, dmax, spectrum, counts):
     k -- integer, kmer length
     dmin -- integer, mininmum distance b/w kmer pair
     dmax -- integer, maximum distance b/w kmer pair
-    spectrum -- boolean, return normalized vector
-    counts -- boolean, use single kmer counts as features
 
     Return:
     feature vector for seq
     """
     feature_vector = {}
 
-    if counts:
-        for i in xrange(0, len(seq)-k+1):
-            kmer = seq[i:i+k]
+    if kmer_map:
+        for i in xrange(0, len(seq)-skmerlen+1):
+            kmer = seq[i:i+skmerlen]
             feature_id = kmer_map[kmer]
 
             if feature_id not in feature_vector:
                 feature_vector[feature_id] = 0
             feature_vector[feature_id] += 1
 
-    for i in xrange(0, len(seq)-k-k-dmax+1):
-        a = seq[i:i+k]
-        window = seq[i+k+dmin:i+dmax+k+k]
-        #checking for pairs to the right of 'a'
-        for j in xrange(0, len(window)-k+1):
-            b = window[j:j+k]
-            if (a,b) in kpair_map:
-                feature_id = kpair_map[(a,b)]
-            elif (b,a) in kpair_map:
-                feature_id = kpair_map[(b,a)]
-            else: continue
+    if not scounts:
+        for i in xrange(0, len(seq)-k-k-dmax+1):
+            a = seq[i:i+k]
+            window = seq[i+k+dmin:i+dmax+k+k]
+            #checking for pairs to the right of 'a'
+            for j in xrange(0, len(window)-k+1):
+                b = window[j:j+k]
+                if (a,b) in kpair_map:
+                    feature_id = kpair_map[(a,b)]
+                elif (b,a) in kpair_map:
+                    feature_id = kpair_map[(b,a)]
+                else: continue
 
-            if feature_id not in feature_vector:
-                feature_vector[feature_id] = 0
-            feature_vector[feature_id] += 1
+                if feature_id not in feature_vector:
+                    feature_vector[feature_id] = 0
+                feature_vector[feature_id] += 1
 
     feature_list = []
-    mag = 0.0
     for (feature, count) in feature_vector.items():
         feature_list.append((feature,count))
-        if spectrum:
-            mag += count**2
 
-    mag = math.sqrt(mag)
     feature_list.sort(key=lambda tup: tup[0])
     vector = ''.join(str(pn))
     for (feature,count) in feature_list:
-        if spectrum:
-            vector += " " + str(feature) + ":" + str(float(count)/mag)
-        else: 
-            vector += " " + str(feature) + ":" + str(count)
+        vector += " " + str(feature) + ":" + str(count)
 
     return vector
 
 
-def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output,spectrum,counts):
+def write_feature_vectors(seqs,labs,k,skmerlen,dmin,dmax,quiet,output,scounts):
     """ write feature vectors
     Arguments:
     seqs -- list of strings, DNA sequences 
@@ -186,7 +177,6 @@ def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output,spectrum,counts):
     dmax -- integer, maximum distance b/w kmer pair
     quiet -- boolean, if true it suppresses messages
     output -- string, name of output file
-    spectrum -- boolean, normalize feature vector
     counts -- boolean, use single kmer counts
 
     """
@@ -205,7 +195,7 @@ def write_feature_vectors(seqs,labs,k,dmin,dmax,quiet,output,spectrum,counts):
             sys.stderr.flush()
         progress_count += 1
 
-        f.write(create_feature_vector( seqs[i], labs[i], k, dmin, dmax, spectrum, counts ))
+        f.write(create_feature_vector( seqs[i], labs[i], k, skmerlen, dmin, dmax, scounts ))
         f.write("\n")
 
     f.close()
@@ -284,6 +274,121 @@ def split_cv_list(cvlist, icv, data):
     return tr_data, te_data
 
 
+def svm_light_learn(seqs, labs, icv, options):
+    """train svm by calling svm_learn (from svm_light package)
+
+    Arguments:
+    seqs -- list, sequences 
+    labs -- list, labels
+    icv -- integer, corss-validation set of interest
+    options -- object containing option data 
+
+    Return:
+    name of model file for the trained svm
+    """
+    cv_train = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".train"
+    cv_model = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".model"
+    write_feature_vectors( seqs, labs, options.kmerlen, options.skmerlen, options.dmin,\
+                           options.dmax, options.quiet, cv_train, options.scounts )
+    cmd = "svm_learn " + cv_train + " " + cv_model
+    
+    if not options.quiet:
+        sys.stderr.write("Executing: " + cmd + "...\n")
+
+    proc = Popen(["svm_learn", cv_train, cv_model], stdout=PIPE)
+
+    if not options.quiet:
+        p1 = re.compile("Reading*")
+        p2 = re.compile("Setting default*")
+        p3 = re.compile("Optimization finished*")
+        p4 = re.compile("Number of SV*")
+        while True:
+            line = proc.stdout.readline()
+            if line != '':
+                m = p1.match(line)
+                if m:
+                    sys.stderr.write("[svm_learn]: done scanning examples.\n")
+                m = p2.match(line)
+                if m:
+                    sys.stderr.write("[svm_learn]: done reading examples into memory.\n")
+                m = p3.match(line)
+                if m:
+                    sys.stderr.write("[svm_learn]: done optimizing...")
+
+                m = p4.match(line)
+                if m:
+                    sys.stderr.write( line.rstrip() + ".\n")
+            else:
+                break
+
+    cmd = "rm " + cv_train
+    if not options.quiet:
+        sys.stderr.write("Executing: " + cmd + "\n")
+
+    call(["rm", cv_train])
+
+    return cv_model
+
+
+def svm_light_classify(seqs_te, labs_te, icv, svm_cv, options):
+    """test svm by calling svm_classify (from svm_light package)
+
+    Arguments:
+    seqs_te -- list, test sequences 
+    labs_te -- list, test labels
+    icv -- integer, corss-validation set of interest
+    svm_cv -- string, name of trained svm model file
+    options -- object containing option data 
+
+    Return:
+    name of model file for the trained svm
+    """
+    cv_pred = []
+    cv_test = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".test"
+    cv_model = svm_cv
+    cv_output = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".output"
+    write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.skmerlen, options.dmin,\
+                           options.dmax, options.quiet, cv_test, options.scounts )
+    cmd = "svm_classify " + cv_test + " " + cv_model + " " + cv_output
+    if not options.quiet:
+        sys.stderr.write("Executing: " + cmd + "...\n")
+
+    proc = Popen(["svm_classify", cv_test, cv_model, cv_output], stdout=PIPE)
+
+    if not options.quiet:
+        p1 = re.compile("Classifying test*")
+        p2 = re.compile("Runtime \(*")
+        p3 = re.compile(".*(?= \(\d+ correct)")
+        while True:
+            line = proc.stdout.readline()
+            if line != '':
+                m = p1.match(line)
+                if m:
+                    sys.stderr.write("[svm_classify]: done reading model.\n")
+
+                m = p2.match(line)
+                if m:
+                    sys.stderr.write("[svm_classify]: done classifying examples...")
+
+                m = p3.match(line)
+                if m:
+                    sys.stderr.write(m.group(0) + ".\n")
+            else:
+                break
+
+    f = open(cv_output, 'r')
+    for line in f:
+        cv_pred.append(float(line))
+
+    cmd = "rm " + cv_output + " " + cv_test + " " + cv_model
+    if not options.quiet:
+        sys.stderr.write("Executing: " + cmd + "\n")
+
+    call(["rm", cv_output, cv_test, cv_model])
+
+    return cv_pred
+
+
 def la_svm_learn(seqs, labs, icv, options):
     """train svm by calling svm_learn (from svm_light package)
 
@@ -298,8 +403,9 @@ def la_svm_learn(seqs, labs, icv, options):
     """
     cv_train = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".train"
     cv_model = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".model"
-    write_feature_vectors( seqs, labs, options.kmerlen, options.dmin, options.dmax,\
-                           options.quiet, cv_train, options.spectrum, options.counts )
+    write_feature_vectors( seqs, labs, options.kmerlen, options.skmerlen, options.dmin,\
+                           options.dmax, options.quiet, cv_train, options.scounts )
+
     cmd = "la_svm " + cv_train + " " + cv_model
     
     if not options.quiet:
@@ -350,8 +456,9 @@ def la_svm_classify(seqs_te, labs_te, icv, svm_cv, options):
     cv_test = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".test"
     cv_model = svm_cv
     cv_output = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".output"
-    write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.dmin, options.dmax,\
-                           options.quiet, cv_test, options.spectrum, options.counts )
+    write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.skmerlen, options.dmin,\
+                           options.dmax, options.quiet, cv_test, options.scounts )
+
     cmd = "la_test " + cv_test + " " + cv_model + " " + cv_output
     if not options.quiet:
         sys.stderr.write("Executing: " + cmd + "...\n")
@@ -401,7 +508,7 @@ def main(argv = sys.argv):
             help="set maximum distance between kmer pair", default=50)
 
     parser.add_option("-H", dest="homeopair", default=True, \
-            help="don't use duplicate kmer pair as feature", action="store_false")
+            help="don't use duplicate kmer pair (homeopair) as feature", action="store_false")
 
     parser.add_option("-q", dest="quiet", default=False, action="store_true", \
             help="supress messages (default=false)")
@@ -409,8 +516,8 @@ def main(argv = sys.argv):
     parser.add_option("-v", dest="ncv", type="int", default=0, \
             help="if set, it will perform N-fold cross-validation and generate a prediction file (default = 0)")
 
-    parser.add_option("-c", dest="counts", type=int, \
-            help="set kmer length for counts", default=0)
+    parser.add_option("-s", dest="skmerlen", type=int, \
+            help="set kmer length for single kmer counts", default=0)
 
     parser.add_option("-x", dest="direct", default=False, \
 			help="use distinct features for distinct revcomp directions (default=false)", action="store_true")
@@ -419,11 +526,12 @@ def main(argv = sys.argv):
 			help="use overlapping kmers (sets dmin=-kmerlen+1)", action="store_true")
 
     parser.add_option("-S", dest="svm", type="int", default=1, \
-			help="set the type of kernel, 1:svm_light, 2:la_svm
-                      (default=1.svm_light)")
+			help="set the svm implementation, 1:svm_light, 2:la_svm (default=1.svm_light)")
+
+    parser.add_option("-c", dest="scounts", default=False, \
+			help="only use single kmer counts. This options requires -s to be set (default=false)", action="store_true")
 
     (options, args) = parser.parse_args()
-
 
     if len(args) == 0:
         parser.print_help()
@@ -436,6 +544,11 @@ def main(argv = sys.argv):
 
     if options.dmax < options.dmin + options.kmerlen:
         sys.stderr.write("error: dmax must be >= (dmin + kmerlen)\n")
+        sys.exit(0)
+
+    if options.scounts and options.skmerlen == 0:
+        parser.error("set kmer length for single kmer counts in order to use the single kmer counts options")
+        parser.print_help()
         sys.exit(0)
 
     if options.overlap:
@@ -466,17 +579,17 @@ def main(argv = sys.argv):
     #generate labels
     labels = [1]*npos + [-1]*nneg
 
-    #list of kmers of length kmerlen
-    kmers = get_kmer_list(options.kmerlen)
-
-    if options.counts:
-        #global variable
-        global kmer_map
-        kmer_map = kmer2feat_map(kmers)
+    #global variable
+    global kmer_map
+    kmer_map = {}
+    if options.skmerlen > 0:
+        kmer_map = kmer2feat_map(get_kmer_list(options.skmerlen))
 
     #global variable
     global kpair_map
-    kpair_map = kpair2feat_map( kmers, options.homeopair, options.counts, options.direct, options.quiet )
+    kpair_map = {}
+    if not options.scounts:
+        kpair_map = kpair2feat_map( get_kmer_list(options.kmerlen), options.homeopair, options.direct, options.quiet )
 
     if options.ncv > 0:
 
@@ -509,7 +622,7 @@ def main(argv = sys.argv):
         save_predictions(output_cvpred, prediction_results, cvlist)
 
     else:
-        write_feature_vectors(seqs,labels,options.kmerlen,options.dmin,options.dmax,options.quiet,outm, options.spectrum, options.counts)
+        write_feature_vectors(seqs,labels,options.kmerlen,options.skmerlen,options.dmin,options.dmax,options.quiet,outm,options.scounts)
 
 if __name__ =='__main__': main()
 
