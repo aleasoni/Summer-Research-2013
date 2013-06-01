@@ -284,7 +284,7 @@ def split_cv_list(cvlist, icv, data):
     return tr_data, te_data
 
 
-def svm_learn(seqs, labs, icv, options):
+def la_svm_learn(seqs, labs, icv, options):
     """train svm by calling svm_learn (from svm_light package)
 
     Arguments:
@@ -300,33 +300,26 @@ def svm_learn(seqs, labs, icv, options):
     cv_model = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".model"
     write_feature_vectors( seqs, labs, options.kmerlen, options.dmin, options.dmax,\
                            options.quiet, cv_train, options.spectrum, options.counts )
-    cmd = "svm_learn " + cv_train + " " + cv_model
+    cmd = "la_svm " + cv_train + " " + cv_model
     
     if not options.quiet:
         sys.stderr.write("Executing: " + cmd + "...\n")
 
-    proc = Popen(["svm_learn", cv_train, cv_model], stdout=PIPE)
+    proc = Popen(["la_svm", cv_train, cv_model], stdout=PIPE)
 
     if not options.quiet:
-        p1 = re.compile("Reading*")
-        p2 = re.compile("Setting default*")
-        p3 = re.compile("Optimization finished*")
-        p4 = re.compile("Number of SV*")
+        p1 = re.compile("examples*")
+        p2 = re.compile("nSVs*")
         while True:
             line = proc.stdout.readline()
             if line != '':
                 m = p1.match(line)
                 if m:
-                    sys.stderr.write("[svm_learn]: done scanning examples.\n")
+                    sys.stderr.write("[la_svm]: done loading examples.\n")
+
                 m = p2.match(line)
                 if m:
-                    sys.stderr.write("[svm_learn]: done reading examples into memory.\n")
-                m = p3.match(line)
-                if m:
-                    sys.stderr.write("[svm_learn]: done optimizing...")
-
-                m = p4.match(line)
-                if m:
+                    sys.stderr.write("[la_svm]: done optimizing...")
                     sys.stderr.write( line.rstrip() + ".\n")
             else:
                 break
@@ -340,7 +333,7 @@ def svm_learn(seqs, labs, icv, options):
     return cv_model
 
 
-def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
+def la_svm_classify(seqs_te, labs_te, icv, svm_cv, options):
     """test svm by calling svm_classify (from svm_light package)
 
     Arguments:
@@ -359,30 +352,26 @@ def svm_classify(seqs_te, labs_te, icv, svm_cv, options):
     cv_output = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".output"
     write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.dmin, options.dmax,\
                            options.quiet, cv_test, options.spectrum, options.counts )
-    cmd = "svm_classify " + cv_test + " " + cv_model + " " + cv_output
+    cmd = "la_test " + cv_test + " " + cv_model + " " + cv_output
     if not options.quiet:
         sys.stderr.write("Executing: " + cmd + "...\n")
 
-    proc = Popen(["svm_classify", cv_test, cv_model, cv_output], stdout=PIPE)
+    proc = Popen(["la_test", cv_test, cv_model, cv_output], stdout=PIPE)
 
     if not options.quiet:
-        p1 = re.compile("Classifying test*")
-        p2 = re.compile("Runtime \(*")
-        p3 = re.compile(".*(?= \(\d+ correct)")
+        p1 = re.compile("examples*")
+        p2 = re.compile("accuracy*")
         while True:
             line = proc.stdout.readline()
             if line != '':
                 m = p1.match(line)
                 if m:
-                    sys.stderr.write("[svm_classify]: done reading model.\n")
+                    sys.stderr.write("[la_test]: done loading model and examples.\n")
 
                 m = p2.match(line)
                 if m:
-                    sys.stderr.write("[svm_classify]: done classifying examples...")
-
-                m = p3.match(line)
-                if m:
-                    sys.stderr.write(m.group(0) + ".\n")
+                    sys.stderr.write("[la_test]: done classifying examples...")
+                    sys.stderr.write(line.rstrip() + ".\n")
             else:
                 break
 
@@ -420,17 +409,18 @@ def main(argv = sys.argv):
     parser.add_option("-v", dest="ncv", type="int", default=0, \
             help="if set, it will perform N-fold cross-validation and generate a prediction file (default = 0)")
 
-    parser.add_option("-c", dest="counts", default=False, \
-            help="use single kmer counts as features (default=false)", action="store_true")
-
-    parser.add_option("-s", dest="spectrum", default=False, \
-			help="set the type of kernel to spectrum (default=false)", action="store_true")
+    parser.add_option("-c", dest="counts", type=int, \
+            help="set kmer length for counts", default=0)
 
     parser.add_option("-x", dest="direct", default=False, \
 			help="use distinct features for distinct revcomp directions (default=false)", action="store_true")
 
     parser.add_option("-o", dest="overlap", default=False, \
 			help="use overlapping kmers (sets dmin=-kmerlen+1)", action="store_true")
+
+    parser.add_option("-S", dest="svm", type="int", default=1, \
+			help="set the type of kernel, 1:svm_light, 2:la_svm
+                      (default=1.svm_light)")
 
     (options, args) = parser.parse_args()
 
@@ -450,6 +440,17 @@ def main(argv = sys.argv):
 
     if options.overlap:
         options.dmin = options.kmerlen*(-1) + 1
+
+    if options.svm == 1:
+        svm_learn = svm_light_learn
+        svm_classify = svm_light_classify
+    elif options.svm == 2:
+        svm_learn = la_svm_learn
+        svm_classify = la_svm_classify
+    else:
+        sys.stderr.write("..unkonwn svm implementation..\n")
+        sys.exit(0)
+
 
     posf = args[0]
     negf = args[1]
