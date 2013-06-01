@@ -22,6 +22,7 @@ import numpy
 import math
 import random
 import re
+import time
 from subprocess import call, Popen, PIPE
 from itertools import product
 from libkmersvm import *
@@ -286,8 +287,8 @@ def svm_light_learn(seqs, labs, icv, options):
     Return:
     name of model file for the trained svm
     """
-    cv_train = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".train"
-    cv_model = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".model"
+    cv_train = "cv"+str(icv)+ "_" + repr(time.time()) + ".train"
+    cv_model = "cv"+str(icv)+ "_" + repr(time.time()) + ".model"
     write_feature_vectors( seqs, labs, options.kmerlen, options.skmerlen, options.dmin,\
                            options.dmax, options.quiet, cv_train, options.scounts )
     cmd = "svm_learn " + cv_train + " " + cv_model
@@ -344,9 +345,9 @@ def svm_light_classify(seqs_te, labs_te, icv, svm_cv, options):
     name of model file for the trained svm
     """
     cv_pred = []
-    cv_test = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".test"
+    cv_test = "cv"+str(icv)+ "_" + repr(time.time()) + ".test"
     cv_model = svm_cv
-    cv_output = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".output"
+    cv_output = "cv"+str(icv)+ "_" + repr(time.time()) + ".output"
     write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.skmerlen, options.dmin,\
                            options.dmax, options.quiet, cv_test, options.scounts )
     cmd = "svm_classify " + cv_test + " " + cv_model + " " + cv_output
@@ -401,8 +402,8 @@ def la_svm_learn(seqs, labs, icv, options):
     Return:
     name of model file for the trained svm
     """
-    cv_train = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".train"
-    cv_model = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".model"
+    cv_train = "cv"+str(icv)+ "_" + repr(time.time()) + ".train"
+    cv_model = "cv"+str(icv)+ "_" + repr(time.time()) + ".model"
     write_feature_vectors( seqs, labs, options.kmerlen, options.skmerlen, options.dmin,\
                            options.dmax, options.quiet, cv_train, options.scounts )
 
@@ -453,9 +454,9 @@ def la_svm_classify(seqs_te, labs_te, icv, svm_cv, options):
     name of model file for the trained svm
     """
     cv_pred = []
-    cv_test = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".test"
+    cv_test = "cv"+str(icv)+ "_" + repr(time.time()) + ".test"
     cv_model = svm_cv
-    cv_output = "cv"+str(icv)+ "_" + str(options.dmin) + "_" + str(options.dmax) + ".output"
+    cv_output = "cv"+str(icv)+ "_" + repr(time.time()) + ".output"
     write_feature_vectors( seqs_te, labs_te, options.kmerlen, options.skmerlen, options.dmin,\
                            options.dmax, options.quiet, cv_test, options.scounts )
 
